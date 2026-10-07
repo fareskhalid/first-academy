@@ -7,7 +7,7 @@ Updated 7 October 2026.
 - Docker installation: PHP 8.5, Node 24, MySQL 8.4, Redis 7.4, web, queue, scheduler, optional Vite, persistent private storage, isolated test databases, CI, and local HTTPS staging.
 - Identity: student self-registration, required Egyptian login phone and WhatsApp declaration, generated student code, phone/code login, password/profile changes, session invalidation, suspension/reactivation, instructor/operator recovery, and no guest course actions.
 - Academic setup: semesters, courses, offerings, optional groups with capacity, lesson identities, opening/completing/archiving, manual/self/invitation enrollment, transfer requests, withdrawal/restoration, fee snapshots, and group history.
-- Interface and operations: mobile English/LTR and Arabic/RTL screens, state-preserving locale switch, dashboards, course directory, localized queued notices, scoped audit log, health commands, and opt-in synthetic two-course/two-group data.
+- Interface and operations: colorful mobile English/LTR and Arabic/RTL screens, locally bundled educational fonts, simple SVG icons, state-preserving locale switch, dashboards, course directory, localized queued notices, scoped audit log, health commands, and opt-in synthetic two-course/two-group data.
 - Automated acceptance: MySQL feature/Livewire tests, a simultaneous last-seat test, formatting checks, and Playwright journeys for mobile Chromium, mobile WebKit, and desktop Chromium.
 
 ## Work in progress / external decisions
@@ -22,4 +22,3 @@ Updated 7 October 2026.
 - Sprint 3: private payment-receipt upload, quarantine/scanning, instructor approval/rejection, payment entitlement, and payment notices.
 - Sprint 4: timed tests, answer autosave, submission/grading, eligibility, and grade release.
 - Sprint 5: reports/CSV exports, announcements, load/device/security checks, backups/restore, production runtime, and controlled pilot.
-
