@@ -1,0 +1,15 @@
+# Local HTTPS staging rehearsal. Uses a separate Compose project and .env.staging.
+# This development image is not the production runtime.
+services:
+  laravel.test:
+    ports: !reset []
+  tls:
+    image: nginx:1.28-alpine
+    ports: ['${STAGING_BIND:-127.0.0.1}:${HTTPS_PORT:-8448}:443']
+    volumes:
+      - ./docker/staging/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./.local/tls:/etc/nginx/tls:ro
+    networks: [course]
+    depends_on:
+      laravel.test: {condition: service_healthy}
+    restart: unless-stopped

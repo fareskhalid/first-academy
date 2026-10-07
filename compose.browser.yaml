@@ -1,0 +1,33 @@
+services:
+  browser-app:
+    image: course-system-dev:php8.5
+    working_dir: /var/www/html
+    env_file: .env.testing
+    environment:
+      APP_ENV: testing
+      APP_DEBUG: 'false'
+      APP_URL: http://browser-app
+      DB_DATABASE: course_system_browser
+      CACHE_STORE: array
+      SESSION_DRIVER: database
+      SESSION_COOKIE: course_browser_session
+      SESSION_SECURE_COOKIE: 'false'
+      QUEUE_CONNECTION: sync
+      BCRYPT_ROUNDS: '4'
+      WWWUSER: '${WWWUSER:-1000}'
+    volumes:
+      - .:/var/www/html
+      - browser-files:/var/www/html/storage/app/private
+      - browser-engines:/ms-playwright
+    networks: [course]
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ['CMD','curl','-fsS','http://localhost/up']
+      interval: 5s
+      retries: 20
+    shm_size: 1gb
+volumes:
+  browser-files:
+  browser-engines:

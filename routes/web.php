@@ -1,0 +1,57 @@
+<?php
+
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Instructor\EnrollmentController;
+use App\Http\Controllers\Instructor\OfferingController;
+use App\Http\Controllers\Instructor\SetupController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StudentController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', fn () => redirect()->route(auth()->check() ? 'dashboard' : 'login'));
+Route::middleware('guest')->group(function () {
+    Route::view('/login', 'auth.login')->name('login');
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login-ip');
+    Route::view('/register', 'auth.register')->name('register');
+    Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:registration');
+    Route::view('/recovery', 'auth.recovery')->name('recovery');
+});
+Route::middleware(['auth', 'active'])->group(function () {
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/profile/password', [ProfileController::class, 'password'])->name('profile.password');
+    Route::post('/locale', [ProfileController::class, 'locale'])->name('locale');
+    Route::view('/notifications', 'notifications')->name('notifications');
+    Route::get('/student/courses', [StudentController::class, 'index'])->name('student.courses');
+    Route::get('/student/courses/{offering}', [StudentController::class, 'show'])->name('student.courses.show');
+    Route::post('/student/courses/{offering}/enroll', [StudentController::class, 'enroll'])->name('student.enroll');
+    Route::post('/student/enrollments/{enrollment}/transfer', [StudentController::class, 'transfer'])->name('student.transfer');
+    Route::get('/invitations/{token}', [StudentController::class, 'invitationShow'])->name('invitations.show');
+    Route::post('/invitations/{token}', [StudentController::class, 'invitationAccept'])->name('invitations.accept');
+    Route::prefix('instructor')->name('instructor.')->middleware('instructor')->group(function () {
+        Route::get('/setup', [SetupController::class, 'index'])->name('setup');
+        Route::post('/setup/{kind}', [SetupController::class, 'save'])->whereIn('kind', ['semesters', 'courses'])->name('setup.store');
+        Route::put('/setup/{kind}/{id}', [SetupController::class, 'save'])->whereIn('kind', ['semesters', 'courses'])->name('setup.update');
+        Route::post('/setup/{kind}/{id}/archive', [SetupController::class, 'archive'])->whereIn('kind', ['semesters', 'courses'])->name('setup.archive');
+        Route::get('/offerings', [OfferingController::class, 'index'])->name('offerings');
+        Route::post('/offerings', [OfferingController::class, 'save'])->name('offerings.store');
+        Route::get('/offerings/{offering}', [OfferingController::class, 'show'])->name('offerings.show');
+        Route::put('/offerings/{offering}', [OfferingController::class, 'save'])->name('offerings.update');
+        Route::post('/offerings/{offering}/status', [OfferingController::class, 'status'])->name('offerings.status');
+        Route::post('/offerings/{offering}/groups', [OfferingController::class, 'group'])->name('groups.store');
+        Route::put('/offerings/{offering}/groups/{group}', [OfferingController::class, 'group'])->name('groups.update');
+        Route::post('/offerings/{offering}/lessons', [OfferingController::class, 'lesson'])->name('lessons.store');
+        Route::put('/offerings/{offering}/lessons/{lesson}', [OfferingController::class, 'lesson'])->name('lessons.update');
+        Route::post('/offerings/{offering}/{kind}/{id}/archive', [OfferingController::class, 'archiveChild'])->whereIn('kind', ['groups', 'lessons'])->name('children.archive');
+        Route::post('/offerings/{offering}/enrollments', [EnrollmentController::class, 'store'])->name('enrollments.store');
+        Route::put('/enrollments/{enrollment}', [EnrollmentController::class, 'update'])->name('enrollments.update');
+        Route::post('/enrollments/{enrollment}/account', [EnrollmentController::class, 'account'])->name('enrollments.account');
+        Route::post('/offerings/{offering}/invitations', [EnrollmentController::class, 'invite'])->name('invitations.store');
+        Route::post('/invitations/{invitation}/revoke', [EnrollmentController::class, 'revoke'])->name('invitations.revoke');
+        Route::post('/transfers/{transfer}', [EnrollmentController::class, 'review'])->name('transfers.review');
+        Route::get('/audit', [DashboardController::class, 'audit'])->name('audit');
+    });
+});

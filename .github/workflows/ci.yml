@@ -1,0 +1,35 @@
+name: Sprint 1 checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  application:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      COMPOSE_PROJECT_NAME: course-ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install from clean checkout
+        run: bash scripts/setup.sh
+      - name: Formatting
+        run: docker compose exec -T laravel.test vendor/bin/pint --test
+      - name: PHP, Livewire, and MySQL concurrency tests
+        run: bash scripts/test.sh
+      - name: Mobile Chromium, WebKit, and desktop browser checks
+        run: bash scripts/browser-test.sh
+      - name: Service health
+        run: docker compose exec -T laravel.test php artisan system:check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+      - name: Stop CI services
+        if: always()
+        run: docker compose -f compose.yaml -f compose.browser.yaml stop

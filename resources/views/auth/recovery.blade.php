@@ -1,0 +1,1 @@
+<x-layout title="recovery_title" :guest="true"><section class="panel"><h2><x-t k="recovery_title" /></h2><p><x-t k="recovery_body" /></p><a class="button secondary" href="{{ route('login') }}"><x-t k="back_login" /></a></section></x-layout>

@@ -1,0 +1,88 @@
+name: ${COMPOSE_PROJECT_NAME:-course-system}
+x-app: &app
+  image: course-system-dev:php8.5
+  build:
+    context: ./docker/development
+    args:
+      WWWGROUP: '${WWWGROUP:-1000}'
+      NODE_VERSION: '24'
+  env_file: ${APP_ENV_FILE:-.env}
+  working_dir: /var/www/html
+  environment:
+    WWWUSER: '${WWWUSER:-1000}'
+    LARAVEL_SAIL: 1
+  volumes:
+    - .:/var/www/html
+    - private-files:/var/www/html/storage/app/private
+  networks: [course]
+  init: true
+services:
+  laravel.test:
+    <<: *app
+    ports: ['127.0.0.1:${APP_PORT:-8088}:80']
+    depends_on:
+      mysql: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost/up']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_ROOT_PASSWORD:-local-root-password}'
+      MYSQL_DATABASE: '${DB_DATABASE:-course_system}'
+      MYSQL_USER: '${DB_USERNAME:-course}'
+      MYSQL_PASSWORD: '${DB_PASSWORD:-local-course-password}'
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init-testing.sh:/docker-entrypoint-initdb.d/10-testing.sh:ro
+    networks: [course]
+    healthcheck:
+      test: ['CMD-SHELL', 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h 127.0.0.1 -u root --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+  redis:
+    image: redis:7.4-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes: ['redis-data:/data']
+    networks: [course]
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+  queue:
+    <<: *app
+    command: ['php', 'artisan', 'queue:work', '--sleep=1', '--tries=3', '--timeout=60']
+    depends_on:
+      laravel.test: {condition: service_healthy}
+    restart: unless-stopped
+    stop_grace_period: 75s
+  scheduler:
+    <<: *app
+    command: ['php', 'artisan', 'schedule:work']
+    depends_on:
+      laravel.test: {condition: service_healthy}
+    restart: unless-stopped
+  vite:
+    <<: *app
+    command: ['npm', 'run', 'dev', '--', '--host', '0.0.0.0']
+    ports: ['127.0.0.1:${VITE_PORT:-5178}:5173']
+    profiles: ['assets']
+    environment:
+      WWWUSER: '${WWWUSER:-1000}'
+      VITE_HMR_HOST: '${VITE_HMR_HOST:-localhost}'
+      VITE_PORT: '${VITE_PORT:-5178}'
+volumes:
+  mysql-data:
+  redis-data:
+  private-files:
+networks:
+  course:
+    driver: bridge
