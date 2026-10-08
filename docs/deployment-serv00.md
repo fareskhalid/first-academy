@@ -89,6 +89,8 @@ ln -s "$APP_ROOT/public" public_html
 
 The `.env`, source, private receipts, and logs remain under `application/` and cannot be requested from the web root.
 
+If the public hostname differs from the domain directory, add the full hostname in DevilWEB as a **Pointer** website targeting the existing PHP website. Set `APP_URL` and the optional GitHub value `SERV00_PUBLIC_DOMAIN` to that public hostname, but keep `SERV00_DOMAIN` set to the domain directory containing `application`.
+
 ## 5. Add the scheduler and queue cron
 
 Open `crontab -e` or DevilWEB's **Cron jobs** screen and add one entry. Replace `LOGIN` and `DOMAIN` with literal values; cron does not receive the shell variables from the earlier SSH session.
@@ -124,15 +126,16 @@ The script uses `git pull --ff-only`, so local production edits stop deployment 
 
 ## Automatic GitHub deployment
 
-The concise `deploy` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs after the full CI job succeeds for a push to `main`. It calls `scripts/serv00-github-deploy.sh`, which owns SSH setup, fast-forwards the server's `main` branch to the exact tested commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public login page. The `production` concurrency group prevents overlapping releases.
+The [production workflow](../.github/workflows/production.yml) runs after [CI](../.github/workflows/ci.yml) succeeds for a push to `main`. It checks out the exact tested commit and calls `scripts/serv00-github-deploy.sh`, which owns SSH setup, fast-forwards the server's `main` branch to that commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public login page. The `production` concurrency group prevents overlapping releases. Manual dispatch is restricted to `main`.
 
-Create these four values under **GitHub repository → Settings → Secrets and variables → Actions**. The workflow accepts the host, username, and domain as either repository secrets or variables, preferring secrets when both exist. The private SSH key must be an encrypted secret, following [GitHub's variables](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables) and [secrets](https://docs.github.com/en/actions/concepts/security/secrets) guidance.
+Create the four required values under **GitHub repository → Settings → Secrets and variables → Actions**. The workflow accepts the host, username, and domains as either repository secrets or variables, preferring secrets when both exist. The private SSH key must be an encrypted secret, following [GitHub's variables](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables) and [secrets](https://docs.github.com/en/actions/concepts/security/secrets) guidance.
 
 | Type | Name | Value |
 | --- | --- | --- |
 | Secret or variable | `SERV00_HOST` | Serv00 SSH hostname, such as `s12.serv00.com` |
 | Secret or variable | `SERV00_USERNAME` | Serv00 account login |
-| Secret or variable | `SERV00_DOMAIN` | Production website domain, without `https://` |
+| Secret or variable | `SERV00_DOMAIN` | Domain directory containing `application`, without `https://` |
+| Secret or variable | `SERV00_PUBLIC_DOMAIN` | Optional public alias checked after deployment; defaults to `SERV00_DOMAIN` |
 | Secret | `SERV00_SSH_PRIVATE_KEY` | Private half of a dedicated Ed25519 deployment key |
 
 Prepare access once from a trusted computer:

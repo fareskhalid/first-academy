@@ -10,7 +10,11 @@ fail() {
 [[ "${SERV00_USERNAME:-}" =~ ^[A-Za-z0-9_]+$ ]] || fail 'SERV00_USERNAME is missing or invalid.'
 [[ "${SERV00_DOMAIN:-}" =~ ^[A-Za-z0-9.-]+$ ]] || fail 'SERV00_DOMAIN is missing or invalid.'
 [[ -n "${SERV00_SSH_PRIVATE_KEY:-}" ]] || fail 'SERV00_SSH_PRIVATE_KEY is missing.'
-[[ "${GITHUB_SHA:-}" =~ ^[0-9a-f]{40}$ ]] || fail 'GITHUB_SHA is missing or invalid.'
+
+DEPLOY_SHA="${SERV00_DEPLOY_SHA:-${GITHUB_SHA:-}}"
+PUBLIC_DOMAIN="${SERV00_PUBLIC_DOMAIN:-$SERV00_DOMAIN}"
+[[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]] || fail 'Deployment commit SHA is missing or invalid.'
+[[ "$PUBLIC_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || fail 'SERV00_PUBLIC_DOMAIN is invalid.'
 
 SSH_DIR="$(mktemp -d "${RUNNER_TEMP:-/tmp}/course-system-serv00.XXXXXX")"
 SSH_KEY="$SSH_DIR/deploy_key"
@@ -63,7 +67,7 @@ chmod 600 "$KNOWN_HOSTS"
 
 APP_ROOT="/usr/home/$SERV00_USERNAME/domains/$SERV00_DOMAIN/application"
 printf -v app_root_quoted '%q' "$APP_ROOT"
-printf -v deploy_sha_quoted '%q' "$GITHUB_SHA"
+printf -v deploy_sha_quoted '%q' "$DEPLOY_SHA"
 
 ssh \
     -i "$SSH_KEY" \
@@ -121,6 +125,6 @@ curl \
     --retry 3 \
     --retry-delay 5 \
     --max-time 30 \
-    "https://$SERV00_DOMAIN/login" >/dev/null
+    "https://$PUBLIC_DOMAIN/login" >/dev/null
 
-echo "Deployment verified: https://$SERV00_DOMAIN/login"
+echo "Deployment verified: https://$PUBLIC_DOMAIN/login"

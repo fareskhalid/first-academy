@@ -1,0 +1,75 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Direct pushes to main, or merged PRs only (not closed-without-merge)
+    if: >
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add remote host to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H ${{ secrets.REMOTE_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Rsync source to server
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'vendor' \
+            --exclude '.env' \
+            --exclude '/.htaccess' \
+            --exclude 'storage/app/**' \
+            --exclude 'storage/logs/**' \
+            --exclude 'storage/framework/cache/**' \
+            --exclude 'storage/framework/sessions/**' \
+            --exclude 'storage/framework/views/**' \
+            ./ \
+            ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }}:/home/fareskhalid/domains/first-academy.fareskhalid.serv00.net/public_html/
+
+      - name: Deploy Laravel on server
+        run: |
+          ssh ${{ secrets.REMOTE_USER }}@${{ secrets.REMOTE_HOST }} << 'EOF'
+            set -e
+            cd /home/fareskhalid/domains/first-academy.fareskhalid.serv00.net/public_html/
+
+            /usr/local/bin/php85 /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction
+
+            npm ci
+            npm run build
+
+            chmod -R 775 storage bootstrap/cache
+
+            /usr/local/bin/php85 artisan migrate --force
+            /usr/local/bin/php85 artisan storage:link --force
+            /usr/local/bin/php85 artisan optimize
+            /usr/local/bin/php85 artisan queue:restart
+          EOF
