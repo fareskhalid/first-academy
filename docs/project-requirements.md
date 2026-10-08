@@ -2,15 +2,15 @@
 
 **Recommended implementation:** one Laravel application with a mobile-first student portal and an instructor portal, using Blade, Livewire, and Tailwind CSS.
 
-**Version:** 1.6 · **Prepared / updated:** 8 October 2026 · **Status:** Sprints 1 and 2 implemented locally; Sprints 3–5 remain planned.
+**Version:** 1.7 · **Prepared / updated:** 8 October 2026 · **Status:** Sprints 1 and 2 implemented locally; Serv00 deployment profile prepared; Sprints 3–5 remain planned.
 
 **Confirmed clarification:** every student receives their own first **two attended classes per course** free. The third class they attend requires payment approval or an explicitly recorded instructor exception.
 
 **Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password and must supply a WhatsApp-linked phone number. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions. The application stores no course fee, and students see only offerings in which they are already enrolled through an instructor or invitation.
 
-This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. A public staging server, production hosting, automated Sprint 2 acceptance runs, and physical-device acceptance still require separate execution.
+This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. Serv00 shared hosting is selected and its deployment artifacts are prepared; an actual public deployment, automated Sprint 2 acceptance runs, and physical-device acceptance still require separate execution.
 
-**Project setup:** Docker Compose with Laravel Sail-compatible images is the implemented local environment, with container-based CI checks. Section 3.7 defines the setup and acceptance criteria. Production hosting is still selected separately.
+**Project setup:** Docker Compose with Laravel Sail-compatible images is the implemented local environment, with container-based CI checks. Serv00 PHP shared hosting is the production profile. Section 3.7 defines both environments and their acceptance criteria.
 
 Read by purpose:
 
@@ -451,11 +451,11 @@ Tailwind 4 documents minimum browser versions of Safari 16.4, Chrome 111, and Fi
 
 | Layer | Recommendation | Why it fits | Trade-off or condition |
 | --- | --- | --- | --- |
-| Main database | MySQL 8.4 LTS with InnoDB and `utf8mb4` | Relational constraints and transactions fit enrollments, receipts, attempts, and attendance. Unicode storage handles student names. | Use the same database engine in integration tests; SQLite-only tests do not prove MySQL locking behavior. |
-| Cache, sessions, and queues | Redis with Laravel's standard drivers | Handles shared sessions, rate limits, QR token lookups, and background work without putting each transient task in the main database. | Adds an operated service; the database remains authoritative for attendance, entitlement, and grades. |
-| Private file storage | Private S3-compatible object storage through Laravel Filesystem | Keeps receipts outside public assets and separates files from application deployments. | Needs access controls, retention rules, and tested backups; a private local disk is acceptable for development. |
+| Main database | MySQL 8.4 LTS locally and MySQL 8.0 on Serv00, using InnoDB and `utf8mb4` | Relational constraints and transactions fit enrollments, receipts, attempts, and attendance. Unicode storage handles student names. | Run integration checks against MySQL 8.0 before public release; SQLite-only tests do not prove MySQL locking behavior. |
+| Cache, sessions, and queues | Redis in Docker; Laravel database drivers on Serv00 | Redis keeps the local multi-service setup representative of a managed deployment. Database drivers remove the need for a resident Redis process within Serv00's shared limits. | Serv00 queue work can be delayed by up to one cron interval; monitor the database and heartbeat tables. |
+| Private file storage | Laravel private local disk on Serv00, outside `public_html`; S3-compatible storage remains an upgrade path | Keeps receipts inaccessible by URL and avoids an extra storage service for the pilot. | Back up the database and private files together to an encrypted off-host location before payment proof launch. |
 | Notifications | Laravel database notifications and queued jobs | Delivers localized in-app notices without requiring email addresses or verified phone numbers. | No external delivery provider is required; automated WhatsApp/SMS/email delivery is deferred. |
-| Scheduled work | Laravel Scheduler + supervised queue workers | Handles reminders, timeout cleanup, reporting jobs, and retention tasks. | Worker health must be monitored; synchronous requests still enforce all time/access rules. |
+| Scheduled work | Laravel Scheduler plus supervised workers where available; one locked minute cron with a bounded database worker on Serv00 | Handles reminders, timeout cleanup, reporting jobs, and retention tasks within each hosting model. | Serv00 has no permanent worker in this profile; synchronous requests still enforce all time/access rules. |
 
 MySQL's LTS release model favors stable features and fixes within a release series; 8.4 is selected as a compatible baseline, without assuming it is the newest available series. Laravel supports MySQL and database transactions. [MySQL LTS policy](https://dev.mysql.com/doc/refman/8.4/en/mysql-releases.html), [Laravel database documentation](https://laravel.com/docs/13.x/database).
 
@@ -468,7 +468,7 @@ Laravel supports queue dispatch after a database transaction commits and storage
 | QR generation | `endroid/qr-code` through Composer, with a compatible locked release | Generates the class QR inside the PHP application. | The library renders a code; application services must still implement expiry, revocation, and access checks. |
 | QR scanning | Phone's native camera opens the HTTPS attendance URL | No app installation or embedded camera dependency for the normal journey. | Test real phones; provide the short-code/manual fallback. An embedded scanner can be added later. |
 | Automated quality | PHPUnit or Pest, Livewire component tests, Playwright browser tests, Pint | Checks PHP behavior, full student journeys, and coding consistency. | Emulated phones do not replace camera/upload checks on real hardware. Select one PHP test style in Sprint 1. |
-| Production | Linux hosting with Nginx, PHP-FPM, managed worker/scheduler processes, and managed MySQL/Redis where practical; a hardened application image if container hosting is selected | Supports the same Laravel application and runtime dependencies used in development. | Select hosting in Sprint 1; use deployment-specific configuration, with no Sail/Vite development server in production. |
+| Production | Serv00 PHP website with PHP 8.5, MySQL 8.0, Node 24 builds, HTTPS, and cron | Fits the existing shared-hosting account without a Docker or Node application server. | Use database cache/session/queue drivers, expose only `public/`, and validate shared-host capacity before the teaching pilot. |
 | Setup and delivery | Docker Compose + Laravel Sail locally; Git, container-based CI, isolated staging, and repeatable releases | Gives developers a consistent environment and makes each sprint demonstrable. | Commit setup instructions and versioned configuration; CI uses isolated synthetic data, never real receipts or production volumes. |
 
 The QR package is documented by its maintainer. If an embedded scanner is later added, browser camera access needs a secure context such as HTTPS. [Endroid QR Code](https://github.com/endroid/qr-code), [MDN camera access](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
@@ -497,10 +497,11 @@ flowchart LR
     UI --> A[Authentication and authorization]
     A --> B[Academic, attendance, payment, assessment actions]
     B --> DB[(MySQL)]
-    B --> R[(Redis)]
+    B --> C[Cache, sessions, and queue transport]
+    C --> DB
     B --> F[Private receipt storage]
     DB --> E[Pending notification events]
-    E --> Q[Queue workers]
+    E --> Q[Queue worker or bounded cron worker]
     Q --> N[Localized in-app notifications]
     T[Scheduler] --> Q
 ```
@@ -639,11 +640,13 @@ Route names below are implementation examples, not a promise of a public API con
 
 Reject invalid fields with actionable messages. Distinguish unauthenticated, unauthorized, expired, validation, and concurrency-conflict states. Protect bearer QR tokens from application logs, analytics, referrer leakage, and browser prefetch effects; use no-store responses and avoid third-party assets on QR landing pages.
 
-### 3.7 Docker setup and environment requirements
+### 3.7 Local Docker and Serv00 environment requirements
 
 **Recommended baseline:** Docker Compose with Laravel Sail for local development. Sail provides Laravel-oriented commands over a Docker development environment and supports PHP 8.5. Developers use Git, Docker Engine or Docker Desktop, and the Compose V2 plugin; Windows development uses WSL2. Host installations of PHP, Composer, Node.js, MySQL, and Redis are not prerequisites for the documented setup. [Laravel Sail documentation](https://laravel.com/docs/13.x/sail).
 
 This fits the project because PHP extensions, database versions, queue workers, and asset tooling can be configured once and reproduced across development machines. It adds Docker resource usage and image-build time, so verify the team's operating systems and CPU architectures during Sprint 1. Compose describes services, networks, and volumes together. [Docker Compose application model](https://docs.docker.com/compose/intro/compose-application-model/).
+
+**Production baseline:** Serv00 hosts the application as a PHP website using PHP 8.5, MySQL 8.0, HTTPS, and a minute cron task. Node 24 compiles Vite assets during deployment; it is not an application server. The production web root points only to Laravel's `public/` directory. Sessions, cache locks, and queues use the existing MySQL tables, while receipt files remain under `storage/app/private`. The versioned environment template, deployment command, PHP settings, cron runner, and complete setup sequence are in [the Serv00 deployment runbook](deployment-serv00.md). [Serv00 PHP](https://docs.serv00.com/PHP/), [Serv00 Node.js](https://docs.serv00.com/Node.js/), [Serv00 Cron](https://docs.serv00.com/Cron/).
 
 #### Setup deliverables and acceptance criteria
 
@@ -653,7 +656,7 @@ This fits the project because PHP extensions, database versions, queue workers, 
 | ENV-02 | Run the required development services consistently. | App, MySQL, Redis, worker, and scheduler start from the documented workflow; Vite runs in a container for asset development. PHP extensions and package/image versions are explicit and compatible with the stack. |
 | ENV-03 | Preserve local data and isolate configuration. | Named volumes or documented persistent mounts retain database/receipt data across ordinary stop/start and container recreation. `.env` and secrets stay out of Git/images; local, test, staging, and production resources are distinct. |
 | ENV-04 | Run checks in a reproducible container environment. | CI installs locked dependencies, builds assets, runs PHP/Livewire checks and browser tests against isolated services, and fails if schema setup, health checks, or required tests fail. Test cleanup cannot target development or production data. |
-| ENV-05 | Document readiness, lifecycle, and deployment differences. | A fresh-setup rehearsal proves service readiness, job execution, scheduler heartbeat, and data persistence. Production uses its selected runtime configuration; if containerized, deploy a hardened image with separate web/worker/scheduler roles and a tested rollback. |
+| ENV-05 | Document readiness, lifecycle, and deployment differences. | A fresh-setup rehearsal proves service readiness, job execution, scheduler heartbeat, and data persistence. Serv00 production uses PHP 8.5, MySQL-backed runtime state, private local files, and a locked bounded cron worker; deployment and rollback are rehearsed before the pilot. |
 
 #### Development services
 
@@ -667,7 +670,7 @@ Service names below are proposed Compose names. Worker/scheduler/Vite entries ar
 | `queue` and `scheduler` | Run queued jobs and scheduled tasks as separate services using the same application image/code | Explicit worker command and a single scheduler process; restart behavior and logs documented. Development may use `php artisan queue:work` and `php artisan schedule:work`. |
 | `vite` | Run the containerized Node/Vite development process | Use the project's compatible Node version and locked packages; configured browser-reachable asset/HMR address. Production receives compiled assets. |
 
-Private receipt storage can use a persistent private local directory during development. All app/worker processes that handle files must share access to that directory. Validate the selected S3-compatible storage on staging before release. Add the file-scanning service or endpoint needed for receipt quarantine in Sprint 3; the default development stack does not require an email service.
+Private receipt storage uses a persistent private local directory during development and the Serv00 pilot. All app/worker processes that handle files must share access to that directory. Validate paired database/file backup and restoration on staging before release; S3-compatible storage remains an upgrade path. Add the file-scanning service or endpoint needed for receipt quarantine in Sprint 3; the default development stack does not require an email service.
 
 Commit image version constraints and dependency lockfiles; avoid floating `latest` tags. Choose compatible patches, PHP extensions, and a Node version in Sprint 1 and update them deliberately. Container connections use Compose service names; `localhost` inside a container refers to that container, not the host database. Publish only needed browser ports by default; optional database debugging ports bind to the local machine.
 
@@ -695,11 +698,11 @@ For phone-based QR checks, document a reachable HTTPS development/staging URL an
 
 #### CI and production boundary
 
-CI uses matching PHP extensions and database/Redis versions, with a dedicated test database, Compose project name, and file-storage location. Browser automation can run in a dedicated test container that reaches the app by service name. Commit lockfiles and install from them; a clean build must not reuse a developer's database or depend on uncommitted files.
+CI uses matching PHP extensions and MySQL behavior, with a dedicated test database, Compose project name, and file-storage location. Browser automation can run in a dedicated test container that reaches the app by service name. Commit lockfiles and install from them; a clean build must not reuse a developer's database or depend on uncommitted files.
 
-Laravel Sail is the local development choice. If Docker is selected for production, use a separate multi-stage build: compile assets/install dependencies in build stages and copy only runtime artifacts into the final image. Exclude development dependencies, source bind mounts, `.env`, and debug tooling. Run the PHP app/worker processes as a non-root user, inject secrets at deployment, and grant write access only where needed. Multi-stage builds support this separation. [Docker multi-stage builds](https://docs.docker.com/build/building/multi-stage/).
+Laravel Sail remains the local development choice and is not copied to Serv00. The Serv00 deploy command installs locked Composer dependencies without development packages, builds locked frontend assets with Node 24, runs migrations once, caches Laravel configuration/routes/views, and exits maintenance mode only after success. Production `.env`, logs, source files, and private uploads remain outside `public_html`.
 
-In a container deployment, use the same release image for PHP web, worker, and scheduler roles with different commands; run schema migrations once as a controlled release job. Operate one scheduler or an explicit shared-lock strategy to avoid duplicate reminders. Send process logs to standard output/error, expose health checks, and give workers time to finish or safely retry jobs during restart. Keep database/files outside the application container's writable layer and retain a previous image for rollback. Managed database/storage services remain compatible with this design.
+Serv00 cron runs once per minute under `flock`: it invokes `schedule:run`, then a `queue:work database` process bounded by jobs, time, memory, and per-job timeout. This avoids a resident Redis or Supervisor process within shared-host limits. A failed deployment remains in maintenance mode for repair; retain a known-good Git revision and restore the paired database/private-file backup when rollback requires data recovery.
 
 ## 4. Quality, testing, and operations
 
@@ -801,19 +804,19 @@ No feature is complete until its acceptance criteria pass, permission checks are
 
 ### 4.5 Deployment, monitoring, and support
 
-Use separate development, staging, and production environments with separate secrets, databases, and private file locations. Production runs with debug output disabled. Web workers, queue workers, and scheduler processes are managed and restarted on deployment. Laravel documents the scheduler integration used for scheduled jobs. [Laravel scheduling](https://laravel.com/docs/13.x/scheduling).
+Use separate development, staging, and production environments with separate secrets, databases, and private file locations. Production runs with debug output disabled. Serv00 executes web requests through PHP 8.5 and uses a locked minute cron invocation for the scheduler and bounded queue worker. Laravel documents the scheduler integration used for scheduled jobs. [Laravel scheduling](https://laravel.com/docs/13.x/scheduling).
 
-Local development follows the Docker setup in Section 3.7. Select and document production hosting during Sprint 1. For container hosting, staging exercises the production image and release configuration, including the single migration job, persistent storage, health checks, and graceful worker replacement. For managed/non-container hosting, maintain the same agreed runtime versions and execute the same application acceptance checks. Docker use locally does not establish production readiness.
+Local development follows the Docker setup in Section 3.7. Production follows [the Serv00 deployment runbook](deployment-serv00.md), including the single migration step, private storage, health checks, and cron worker. Docker use locally does not establish Serv00 readiness; rehearse deployment, rollback, backup restoration, and mobile access against a separate staging domain before the pilot.
 
 | Concern | Required operating behavior |
 | --- | --- |
-| Release | Build locked assets/dependencies; run CI; deploy to staging; validate migrations; back up; deploy during a quiet period; run smoke checks; restart workers. |
+| Release | Run CI; back up MySQL and private files; let the gated GitHub Actions job deploy the exact successful `main` commit through `scripts/serv00-deploy.sh`; validate migrations, `/up`, and `system:check`; run smoke checks. |
 | Rollback | Keep the previous application release available. Prefer backward-compatible migrations; do not blindly reverse migrations that would destroy attendance, payments, or answers. |
-| Backups | Encrypt database/file backups and store a separate copy. Use database log/point-in-time recovery sufficient for the 15-minute target; backup files on a matching schedule and verify references after restoration. |
+| Backups | Encrypt database/file backups and store a separate off-host copy. Serv00's provider backup alone does not satisfy the proposed 15-minute recovery-point target; automate paired MySQL/private-file backups or revise the target before launch. |
 | Monitoring | Alert on application errors, failed authentication spikes, queue delay, scheduler heartbeat, storage errors, failed backups, and abnormal check-in/test-save failures. |
 | Support | Give the instructor a runbook for missed scans, wrong-group attendance, rejected receipts, account recovery, test outages, and restoring service. |
 
-Payment approval and attendance must commit even when notification workers are delayed; pending events are delivered after recovery. A file-store outage prevents new proof submission with an honest retry state. A database outage prevents confirmation of attendance/answer saves; do not fabricate local success. A Redis/session outage should produce a controlled unavailable/retry state, with instructor manual recording after recovery where appropriate.
+Payment approval and attendance must commit even when notification workers are delayed; pending events are delivered after recovery. A file-store outage prevents new proof submission with an honest retry state. On Serv00, a database outage also affects sessions, cache locks, queues, attendance, and answer saves; produce a controlled unavailable/retry state and do not fabricate local success. Instructor manual recording remains available after recovery where appropriate.
 
 Production smoke checks must prove HTTPS, both student login identifiers, unauthenticated-action rejection, one synthetic authorized check-in, private-file denial for the wrong user, a test deadline, bilingual screens/in-app notices, and worker/scheduler health. Use a designated test offering and remove or archive synthetic records through an audited process after validation.
 
@@ -837,7 +840,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 | Sprint | Time | Demonstrable outcome | Dependencies |
 | --- | --- | --- | --- |
-| 1 | Weeks 1–2 | Reproducible Docker setup and CI; bilingual account/course screens; students register, sign in with phone/code, receive instructor/invitation enrollment, and see only their courses. | Docker-capable development machines, product defaults, Arabic wording review, device sample, repository/hosting access |
+| 1 | Weeks 1–2 | Reproducible Docker setup and CI; bilingual account/course screens; students register, sign in with phone/code, receive instructor/invitation enrollment, and see only their courses. | Docker-capable development machines, product defaults, Arabic wording review, device sample, Serv00 repository/domain access |
 | 2 | Weeks 3–4 | Instructor publishes a Saturday–Friday week; signed-in students scan and use exactly two free attended classes. | Sprint 1 identity, ownership, enrollment, locale foundation |
 | 3 | Weeks 5–6 | Student uploads proof; instructor approves; paid course attendance unlocks in both languages. | Sprint 2 attendance/access decisions; private storage/in-app notifications |
 | 4 | Weeks 7–8 | Instructor publishes a timed test; eligible students take it on phones and see released grades. | Accounts, enrollment, payment access, scheduling/time conventions |
@@ -847,7 +850,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 **Outcome:** working English/Arabic mobile registration, phone/code sign-in, and authenticated course enrollment on staging.
 
-1. Establish Laravel/Livewire with Docker Compose/Sail, a clean-checkout bootstrap guide/script, persistent MySQL/Redis/private storage, worker/scheduler/Vite services, and container-based CI: ENV-01–05 foundation. Select production hosting, prepare staging/secrets, and verify the phone-browser prototype and locked runtime versions.
+1. Establish Laravel/Livewire with Docker Compose/Sail, a clean-checkout bootstrap guide/script, persistent MySQL/Redis/private storage, worker/scheduler/Vite services, and container-based CI: ENV-01–05 foundation. Prepare the Serv00 PHP 8.5/MySQL deployment profile, staging/secrets, and verify the phone-browser prototype and locked runtime versions.
 2. Implement regular registration with Egyptian login phone and WhatsApp contact, unique student codes, phone/code-password login, authenticated changes, instructor-assisted recovery, and role policies: FR-ID-01–05. Remove starter-kit verification/email-reset dependencies; no guest role or anonymous course actions.
 3. Implement semesters, courses, offerings, lesson/group setup, and manual/invitation enrollment: FR-AC-01–03. Implement transfer/withdrawal foundations from FR-AC-05.
 4. Build English/LTR and Arabic/RTL layouts, locale selection, profile screens, and course cards: FR-LC-01–05/FR-RP-01–02 foundations. Establish audit recording and localized in-app notices: FR-RP-05/FR-NT-01 foundations.
@@ -855,7 +858,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 **Exit criteria:** an instructor can create an offering with two groups and enroll a registered student manually or by invitation; the student can sign in using either identifier and see only their enrolled offerings. No email/phone verification is requested and signed-out users cannot perform course actions. Both languages work on staging, with localized in-app notices and running workers/scheduler; browser support is documented.
 
-**Setup acceptance:** a second clean checkout starts successfully using Git and Docker without host PHP/Node/MySQL/Redis. Schema creation, instructor setup, asset build, tests, queue processing, and scheduler heartbeat work; routine stop/start and container recreation preserve a sample record and private file. Test resources are isolated, and the production runtime decision is recorded: ENV-01–04 plus ENV-05's local requirements.
+**Setup acceptance:** a second clean checkout starts successfully using Git and Docker without host PHP/Node/MySQL/Redis. Schema creation, instructor setup, asset build, tests, queue processing, and scheduler heartbeat work; routine stop/start and container recreation preserve a sample record and private file. Test resources are isolated. The Serv00 runtime decision and deployment artifacts are recorded; public deployment and rollback rehearsal remain ENV-05 acceptance work.
 
 **Review demo:** instructor setup, student registration, instructor/invitation enrollment, then phone/code sign-in and enrolled-course access on a phone, switching between English and Arabic. No production teaching pilot yet.
 
@@ -945,10 +948,10 @@ The attendance interpretation, Saturday week start, English/Arabic support, phon
 | Academic operations | One active group; shared lesson identities across groups; configurable offering timezone; instructor/invitation enrollment only; students see only their enrolled offerings. Saturday week start is fixed. | Confirmed in Sprint 1 |
 | Account recovery, locale details, and devices | Review instructor-assisted recovery, optional instructor authenticator-app 2FA, generated student-code format, and English fallback when no supported browser preference exists. Both languages and no email/phone verification are fixed; sample student devices determine browser support. | Sprint 1 prototype |
 | Assessments | Standard tests follow trial/payment eligibility; optional free or paid-only tests; single-choice/true-false/text questions; one initial attempt; no code execution; instructor-controlled result release. | Before Sprint 4 |
-| Setup, operations, and retention | Docker Compose/Sail is the recommended local setup; confirm team OS/CPU support and choose hardened container hosting or managed/non-container production. Proposed 2,000-student envelope, 24-hour receipt review, and 24-month history; select providers, region, budget, and retention. | Setup/hosting/capacity in Sprint 1; production readiness/retention before Sprint 5 |
+| Setup, operations, and retention | Docker Compose/Sail is the local setup; Serv00 PHP shared hosting is selected for production. Proposed 2,000-student envelope, 24-hour receipt review, and 24-month history remain subject to Serv00 load validation, off-host backup automation, budget, and retention approval. | Hosting selected in Sprint 1; capacity/backup/retention before Sprint 5 |
 
 If a proposed default changes, update the affected rule, acceptance scenario, and sprint estimate together. Lifetime trial limits across semesters, installment billing, or broader phone-browser support change implementation work. English and Arabic localization is already included in this version's required scope.
 
 ### 5.10 Immediate review action
 
-**Take two minutes to review Section 3.7:** read the Docker setup deliverables and service table. They define the proposed local environment and what Sprint 1 must demonstrate from a clean checkout.
+**Next two-minute action:** open [the Serv00 deployment runbook](deployment-serv00.md) and collect the domain, Serv00 server number, MySQL database/user, and repository URL required by Section 1.

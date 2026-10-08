@@ -4,21 +4,26 @@ namespace App\Console\Commands;
 
 use Carbon\Carbon;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Storage;
 
 class SystemCheck extends Command
 {
     protected $signature = 'system:check {--wait=0 : Bounded seconds to wait for the scheduler and queue}';
 
-    protected $description = 'Check database, Redis, private storage, queue delivery, and scheduler heartbeat';
+    protected $description = 'Check database, cache, private storage, queue delivery, and scheduler heartbeat';
 
     public function handle(): int
     {
         try {
             DB::select('SELECT 1');
-            Redis::connection()->ping();
+            $cacheKey = 'health:'.bin2hex(random_bytes(8));
+            Cache::put($cacheKey, 'ready', 60);
+            if (Cache::get($cacheKey) !== 'ready') {
+                throw new \RuntimeException('The configured cache store is not readable and writable.');
+            }
+            Cache::forget($cacheKey);
             $path = 'health/'.bin2hex(random_bytes(8));
             if (! Storage::disk('local')->put($path, 'ready') || Storage::disk('local')->get($path) !== 'ready') {
                 throw new \RuntimeException('Private storage is not writable.');
@@ -39,7 +44,7 @@ class SystemCheck extends Command
                 }
                 usleep(500000);
             } while (true);
-            $this->info('PASS: database, Redis, private storage, queue, scheduler.');
+            $this->info('PASS: database, cache, private storage, queue, scheduler.');
 
             return self::SUCCESS;
         } catch (\Throwable $e) {

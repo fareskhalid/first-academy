@@ -37,11 +37,10 @@ The browser suite covers mobile Chromium, mobile WebKit, and desktop Chromium in
 
 An instructor can issue a one-hour temporary password from an enrolled student's roster. A trusted operator can also run `docker compose exec laravel.test php artisan account:reset IDENTIFIER`. Both require a reason, increment the session version, and force a password change. Students cannot recover accounts through email, SMS, or WhatsApp.
 
-Use `docker compose stop` for normal shutdown. Volume deletion is intentionally absent from project scripts. Backups and public deployment are outside the local Sprint 1 configuration.
+Use `docker compose stop` for normal shutdown. Volume deletion is intentionally absent from project scripts. Backups and public deployment are outside the local Docker configuration.
 
 ## Staging and production boundary
 
 `bash scripts/staging.sh` starts a separate local HTTPS Compose project with its own database, Redis, private files, key, session cookie, and self-signed certificate. It proves TLS proxying and process topology locally. It does not constitute public staging or production readiness.
 
-Production still needs a selected provider/domain, managed secrets, trusted TLS, backups, monitoring, a hardened runtime image, a controlled migration job, and rollback validation. The Sail-compatible development image includes build/debug tools and must not be deployed as the production image.
-
+Serv00 shared hosting is the selected production profile. [The Serv00 runbook](deployment-serv00.md) provides the PHP 8.5/MySQL environment, safe public-root layout, deploy script, HTTPS setup, and cron-based scheduler/queue worker. A domain, credentials, off-host backup target, monitoring, and a completed production deployment are still required. The Sail-compatible development image includes build/debug tools and must not be deployed to Serv00.

@@ -30,5 +30,6 @@ Thumbs.db
 /playwright-report/
 /.env.*
 !/.env.example
+!/.env.serv00.example
 !/.env.staging.example
 !/.env.testing

@@ -1,6 +1,6 @@
 # Course System
 
-Mobile-first English/Arabic course management built with Laravel 13, Livewire 4, MySQL 8.4, Redis, Tailwind CSS 4, and Docker Compose.
+Mobile-first English/Arabic course management built with Laravel 13, Livewire 4, Tailwind CSS 4, and MySQL. Docker Compose is the local environment; Serv00 PHP shared hosting is the selected production profile.
 
 ## Install
 
@@ -42,9 +42,13 @@ bash scripts/staging.sh
 
 Open <https://localhost:8448>. The generated 30-day certificate is self-signed and intended only for this computer. Testing from a real phone needs a reachable hostname/IP and a certificate trusted by that phone; configure those before QR work in Sprint 2.
 
+## Serv00 deployment
+
+Use [the Serv00 deployment runbook](docs/deployment-serv00.md). It keeps Docker out of production, selects PHP 8.5 and Node 24, stores sessions/cache/queues in Serv00 MySQL, and runs scheduling plus queued jobs from one locked minute cron entry.
+
 ## Documentation
 
 - [Full requirements](docs/project-requirements.md)
 - [Installation and operations](docs/installation.md)
+- [Serv00 deployment](docs/deployment-serv00.md)
 - [Sprint 1 implementation status](docs/sprint-1-status.md)
-

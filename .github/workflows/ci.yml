@@ -1,9 +1,13 @@
-name: Sprint 1 checks
+name: Course system CI and deployment
+
 on:
   push:
   pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   application:
     runs-on: ubuntu-24.04
@@ -33,3 +37,112 @@ jobs:
       - name: Stop CI services
         if: always()
         run: docker compose -f compose.yaml -f compose.browser.yaml stop
+
+  deploy:
+    name: Deploy tested commit to Serv00
+    needs: application
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: production
+    concurrency:
+      group: serv00-production
+      cancel-in-progress: false
+    env:
+      SERV00_HOST: ${{ vars.SERV00_HOST }}
+      SERV00_USERNAME: ${{ vars.SERV00_USERNAME }}
+      SERV00_DOMAIN: ${{ vars.SERV00_DOMAIN }}
+      SERV00_SSH_PRIVATE_KEY: ${{ secrets.SERV00_SSH_PRIVATE_KEY }}
+    steps:
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SERV00_HOST" =~ ^[A-Za-z0-9.-]+$ ]] || { echo 'SERV00_HOST is missing or invalid.' >&2; exit 1; }
+          [[ "$SERV00_USERNAME" =~ ^[A-Za-z0-9_]+$ ]] || { echo 'SERV00_USERNAME is missing or invalid.' >&2; exit 1; }
+          [[ "$SERV00_DOMAIN" =~ ^[A-Za-z0-9.-]+$ ]] || { echo 'SERV00_DOMAIN is missing or invalid.' >&2; exit 1; }
+          [[ -n "$SERV00_SSH_PRIVATE_KEY" ]] || { echo 'SERV00_SSH_PRIVATE_KEY is missing.' >&2; exit 1; }
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$SERV00_SSH_PRIVATE_KEY" | tr -d '\r' > "$HOME/.ssh/serv00_deploy"
+          ssh-keyscan -H "$SERV00_HOST" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/serv00_deploy" "$HOME/.ssh/known_hosts"
+          ssh-keygen -y -f "$HOME/.ssh/serv00_deploy" >/dev/null
+          test -s "$HOME/.ssh/known_hosts" || { echo 'Unable to obtain the Serv00 SSH host key.' >&2; exit 1; }
+
+      - name: Deploy exact commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_root="/usr/home/$SERV00_USERNAME/domains/$SERV00_DOMAIN/application"
+          printf -v app_root_quoted '%q' "$app_root"
+          printf -v deploy_sha_quoted '%q' "$GITHUB_SHA"
+
+          ssh \
+            -i "$HOME/.ssh/serv00_deploy" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            "$SERV00_USERNAME@$SERV00_HOST" \
+            "/usr/local/bin/bash -s -- $app_root_quoted $deploy_sha_quoted" <<'REMOTE'
+          set -euo pipefail
+
+          APP_ROOT="$1"
+          DEPLOY_SHA="$2"
+          MAINTENANCE_STARTED=0
+
+          report_failure() {
+            status=$?
+            if [[ "$status" -ne 0 && "$MAINTENANCE_STARTED" -eq 1 ]]; then
+              echo 'Deployment failed after maintenance mode started; the site remains in maintenance mode.' >&2
+            fi
+          }
+          trap report_failure EXIT
+
+          [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid deployment commit SHA.' >&2; exit 1; }
+          [[ -d "$APP_ROOT/.git" ]] || { echo "Git checkout not found: $APP_ROOT" >&2; exit 1; }
+
+          cd "$APP_ROOT"
+          git diff --quiet && git diff --cached --quiet || {
+            echo 'Tracked production files contain local changes; deployment stopped.' >&2
+            exit 1
+          }
+          if [[ -f vendor/autoload.php ]]; then
+            /usr/local/bin/php85 artisan down --retry=60 --refresh=15
+            MAINTENANCE_STARTED=1
+          fi
+          git fetch --prune origin main
+          git checkout main
+          git merge --ff-only "$DEPLOY_SHA"
+          [[ "$(git rev-parse HEAD)" == "$DEPLOY_SHA" ]] || {
+            echo 'Server checkout does not match the tested commit.' >&2
+            exit 1
+          }
+
+          SKIP_GIT_PULL=1 /usr/local/bin/bash scripts/serv00-deploy.sh
+          MAINTENANCE_STARTED=0
+          /usr/local/bin/php85 artisan system:check --wait=75
+          REMOTE
+
+      - name: Verify public health endpoint
+        shell: bash
+        run: |
+          curl \
+            --fail \
+            --show-error \
+            --silent \
+            --retry 3 \
+            --retry-delay 5 \
+            --max-time 30 \
+            "https://$SERV00_DOMAIN/up" >/dev/null
+
+      - name: Remove SSH material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$HOME/.ssh/serv00_deploy" "$HOME/.ssh/known_hosts"

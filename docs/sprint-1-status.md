@@ -12,9 +12,9 @@ Updated 8 October 2026.
 
 ## Work in progress / external decisions
 
-- Public staging is not deployed because no server, domain, or deployment credentials were supplied. Local HTTPS staging is ready as the deployment rehearsal.
+- Serv00 is the selected production host and its environment template, deploy script, web-root layout, and cron worker are documented. Public staging is not deployed because no server, domain, or deployment credentials were supplied.
 - Physical Android/iPhone review and Arabic wording approval need the instructor's devices/content review. Browser emulation is automated.
-- Production hosting, backups, monitoring, retention values, and optional instructor authenticator-app 2FA remain product/operations decisions.
+- Off-host backups, monitoring, retention values, verified Serv00 capacity, and optional instructor authenticator-app 2FA remain product/operations decisions.
 
 ## Delivered after Sprint 1
 
