@@ -104,10 +104,10 @@ Wait two minutes, then verify all shared-hosting dependencies:
 ```bash
 cd "$APP_ROOT"
 php85 artisan system:check
-curl -fsS "https://$DOMAIN/up"
+curl -fsS "https://$DOMAIN/login" >/dev/null
 ```
 
-Expected results are `PASS: database, cache, private storage, queue, scheduler.` and an HTTP success response from `/up`.
+Expected results are `PASS: database, cache, private storage, queue, scheduler.` and an HTTP success response from the public login page.
 
 ## Routine deployment
 
@@ -124,7 +124,7 @@ The script uses `git pull --ff-only`, so local production edits stop deployment 
 
 ## Automatic GitHub deployment
 
-The concise `deploy` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs after the full CI job succeeds for a push to `main`. It calls `scripts/serv00-github-deploy.sh`, which owns SSH setup, fast-forwards the server's `main` branch to the exact tested commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public `/up` endpoint. The `production` concurrency group prevents overlapping releases.
+The concise `deploy` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs after the full CI job succeeds for a push to `main`. It calls `scripts/serv00-github-deploy.sh`, which owns SSH setup, fast-forwards the server's `main` branch to the exact tested commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public login page. The `production` concurrency group prevents overlapping releases.
 
 Create these four values under **GitHub repository → Settings → Secrets and variables → Actions**. The workflow accepts the host, username, and domain as either repository secrets or variables, preferring secrets when both exist. The private SSH key must be an encrypted secret, following [GitHub's variables](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables) and [secrets](https://docs.github.com/en/actions/concepts/security/secrets) guidance.
 

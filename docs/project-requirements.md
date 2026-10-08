@@ -810,7 +810,7 @@ Local development follows the Docker setup in Section 3.7. Production follows [t
 
 | Concern | Required operating behavior |
 | --- | --- |
-| Release | Run CI; back up MySQL and private files; let the gated GitHub Actions job deploy the exact successful `main` commit through `scripts/serv00-deploy.sh`; validate migrations, `/up`, and `system:check`; run smoke checks. |
+| Release | Run CI; back up MySQL and private files; let the gated GitHub Actions job deploy the exact successful `main` commit through `scripts/serv00-deploy.sh`; validate migrations, the public login page, and `system:check`; run smoke checks. |
 | Rollback | Keep the previous application release available. Prefer backward-compatible migrations; do not blindly reverse migrations that would destroy attendance, payments, or answers. |
 | Backups | Encrypt database/file backups and store a separate off-host copy. Serv00's provider backup alone does not satisfy the proposed 15-minute recovery-point target; automate paired MySQL/private-file backups or revise the target before launch. |
 | Monitoring | Alert on application errors, failed authentication spikes, queue delay, scheduler heartbeat, storage errors, failed backups, and abnormal check-in/test-save failures. |

@@ -121,6 +121,6 @@ curl \
     --retry 3 \
     --retry-delay 5 \
     --max-time 30 \
-    "https://$SERV00_DOMAIN/up" >/dev/null
+    "https://$SERV00_DOMAIN/login" >/dev/null
 
-echo "Deployment verified: https://$SERV00_DOMAIN"
+echo "Deployment verified: https://$SERV00_DOMAIN/login"
