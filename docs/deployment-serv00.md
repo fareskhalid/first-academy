@@ -124,7 +124,7 @@ The script uses `git pull --ff-only`, so local production edits stop deployment 
 
 ## Automatic GitHub deployment
 
-The `deploy` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs after the full CI job succeeds for a push to `main`. It opens one SSH session, fast-forwards the server's `main` branch to the exact tested commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public `/up` endpoint. The `production` concurrency group prevents overlapping releases.
+The concise `deploy` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs after the full CI job succeeds for a push to `main`. It calls `scripts/serv00-github-deploy.sh`, which owns SSH setup, fast-forwards the server's `main` branch to the exact tested commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public `/up` endpoint. The `production` concurrency group prevents overlapping releases.
 
 Create these four values under **GitHub repository → Settings → Secrets and variables → Actions**. Non-sensitive connection values are variables; the private SSH key is stored as an encrypted secret, following [GitHub's variables](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables) and [secrets](https://docs.github.com/en/actions/concepts/security/secrets) guidance.
 
