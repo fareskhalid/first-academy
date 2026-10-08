@@ -15,8 +15,31 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: course-ci
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+      - name: Cache dependency downloads
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/composer
+            ~/.npm
+          key: dependency-downloads-${{ runner.os }}-${{ hashFiles('composer.lock', 'package-lock.json') }}
+          restore-keys: dependency-downloads-${{ runner.os }}-
+      - uses: docker/setup-buildx-action@v4
+      - name: Build cached application image
+        uses: docker/build-push-action@v7
+        with:
+          context: docker/development
+          load: true
+          tags: course-system-dev:php8.5
+          build-args: |
+            WWWGROUP=1000
+            NODE_VERSION=24
+          cache-from: type=gha,scope=course-system-dev
+          cache-to: type=gha,mode=max,scope=course-system-dev
       - name: Install from clean checkout
+        env:
+          SKIP_DOCKER_BUILD: 1
+          SKIP_SYSTEM_CHECK: 1
         run: bash scripts/setup.sh
       - name: Formatting
         run: docker compose exec -T laravel.test vendor/bin/pint --test
@@ -26,7 +49,7 @@ jobs:
         run: bash scripts/browser-test.sh
       - name: Service health
         run: docker compose exec -T laravel.test php artisan system:check
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: browser-results
@@ -50,7 +73,7 @@ jobs:
       group: serv00-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Deploy
         env:
           SERV00_HOST: ${{ vars.SERV00_HOST }}
