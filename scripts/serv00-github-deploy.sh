@@ -21,10 +21,44 @@ cleanup() {
 }
 trap cleanup EXIT
 
-printf '%s\n' "$SERV00_SSH_PRIVATE_KEY" | tr -d '\r' > "$SSH_KEY"
+is_public_key() {
+    [[ "$1" == ssh-* || "$1" == ecdsa-* || "$1" == sk-* || "$1" == *'BEGIN PUBLIC KEY'* ]]
+}
+
+write_private_key() {
+    local key_material="$1"
+    key_material="${key_material//$'\r'/}"
+
+    if [[ "$key_material" != *$'\n'* && "$key_material" == *'\n'* ]]; then
+        key_material="${key_material//\\n/$'\n'}"
+    fi
+
+    is_public_key "$key_material" && fail 'SERV00_SSH_PRIVATE_KEY contains a public key. Store the file without the .pub suffix.'
+
+    printf '%s\n' "$key_material" > "$SSH_KEY"
+    chmod 600 "$SSH_KEY"
+
+    if ssh-keygen -y -P '' -f "$SSH_KEY" >/dev/null 2>&1; then
+        return
+    fi
+
+    local decoded_key
+    if decoded_key="$(printf '%s' "$key_material" | base64 --decode 2>/dev/null)"; then
+        decoded_key="${decoded_key//$'\r'/}"
+        is_public_key "$decoded_key" && fail 'SERV00_SSH_PRIVATE_KEY decodes to a public key. Encode the file without the .pub suffix.'
+        printf '%s\n' "$decoded_key" > "$SSH_KEY"
+
+        if ssh-keygen -y -P '' -f "$SSH_KEY" >/dev/null 2>&1; then
+            return
+        fi
+    fi
+
+    fail 'SERV00_SSH_PRIVATE_KEY is not a valid unencrypted private key. Store its complete raw or Base64-encoded contents.'
+}
+
+write_private_key "$SERV00_SSH_PRIVATE_KEY"
 ssh-keyscan -T 10 -H "$SERV00_HOST" > "$KNOWN_HOSTS"
-chmod 600 "$SSH_KEY" "$KNOWN_HOSTS"
-ssh-keygen -y -f "$SSH_KEY" >/dev/null
+chmod 600 "$KNOWN_HOSTS"
 [[ -s "$KNOWN_HOSTS" ]] || fail 'Unable to obtain the Serv00 SSH host key.'
 
 APP_ROOT="/usr/home/$SERV00_USERNAME/domains/$SERV00_DOMAIN/application"

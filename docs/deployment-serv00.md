@@ -143,7 +143,13 @@ cat ./serv00-actions-key.pub | ssh LOGIN@sX.serv00.com \
     'umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys'
 ```
 
-Copy the complete contents of `serv00-actions-key` into `SERV00_SSH_PRIVATE_KEY`. The workflow obtains the current SSH host key with `ssh-keyscan` at deployment time because manual host fingerprint verification was skipped. Do not reuse a personal SSH key.
+Store the private key in `SERV00_SSH_PRIVATE_KEY`. Base64 is the most reliable single-line format for GitHub Secrets:
+
+```bash
+base64 < ./serv00-actions-key | tr -d '\n'
+```
+
+Copy that command's complete output into the secret. The workflow also accepts the complete raw multiline private key, but never use `serv00-actions-key.pub`. The key must not have a passphrase. The workflow obtains the current SSH host key with `ssh-keyscan` at deployment time because manual host fingerprint verification was skipped. Do not reuse a personal SSH key.
 
 The checkout on Serv00 must already exist at `/usr/home/LOGIN/domains/DOMAIN/application`, contain its production `.env`, and be able to run `git fetch origin main`. A public GitHub repository needs no extra Git credential. For a private repository, configure a separate read-only GitHub deploy key on the Serv00 checkout; the GitHub Actions SSH key grants server access only.
 
