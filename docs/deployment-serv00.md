@@ -126,13 +126,13 @@ The script uses `git pull --ff-only`, so local production edits stop deployment 
 
 The concise `deploy` job in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs after the full CI job succeeds for a push to `main`. It calls `scripts/serv00-github-deploy.sh`, which owns SSH setup, fast-forwards the server's `main` branch to the exact tested commit, runs `scripts/serv00-deploy.sh`, waits for scheduler/queue health, and checks the public `/up` endpoint. The `production` concurrency group prevents overlapping releases.
 
-Create these four values under **GitHub repository → Settings → Secrets and variables → Actions**. Non-sensitive connection values are variables; the private SSH key is stored as an encrypted secret, following [GitHub's variables](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables) and [secrets](https://docs.github.com/en/actions/concepts/security/secrets) guidance.
+Create these four values under **GitHub repository → Settings → Secrets and variables → Actions**. The workflow accepts the host, username, and domain as either repository secrets or variables, preferring secrets when both exist. The private SSH key must be an encrypted secret, following [GitHub's variables](https://docs.github.com/en/actions/concepts/workflows-and-actions/variables) and [secrets](https://docs.github.com/en/actions/concepts/security/secrets) guidance.
 
 | Type | Name | Value |
 | --- | --- | --- |
-| Variable | `SERV00_HOST` | Serv00 SSH hostname, such as `s12.serv00.com` |
-| Variable | `SERV00_USERNAME` | Serv00 account login |
-| Variable | `SERV00_DOMAIN` | Production website domain, without `https://` |
+| Secret or variable | `SERV00_HOST` | Serv00 SSH hostname, such as `s12.serv00.com` |
+| Secret or variable | `SERV00_USERNAME` | Serv00 account login |
+| Secret or variable | `SERV00_DOMAIN` | Production website domain, without `https://` |
 | Secret | `SERV00_SSH_PRIVATE_KEY` | Private half of a dedicated Ed25519 deployment key |
 
 Prepare access once from a trusted computer:

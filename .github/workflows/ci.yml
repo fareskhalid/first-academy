@@ -76,8 +76,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Deploy
         env:
-          SERV00_HOST: ${{ vars.SERV00_HOST }}
-          SERV00_USERNAME: ${{ vars.SERV00_USERNAME }}
-          SERV00_DOMAIN: ${{ vars.SERV00_DOMAIN }}
+          SERV00_HOST: ${{ secrets.SERV00_HOST || vars.SERV00_HOST }}
+          SERV00_USERNAME: ${{ secrets.SERV00_USERNAME || vars.SERV00_USERNAME }}
+          SERV00_DOMAIN: ${{ secrets.SERV00_DOMAIN || vars.SERV00_DOMAIN }}
           SERV00_SSH_PRIVATE_KEY: ${{ secrets.SERV00_SSH_PRIVATE_KEY }}
         run: bash scripts/serv00-github-deploy.sh
