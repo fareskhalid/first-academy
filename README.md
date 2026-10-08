@@ -1,4 +1,4 @@
-# Course System
+# First Academy System
 
 Mobile-first English/Arabic course management built with Laravel 13, Livewire 4, Tailwind CSS 4, and MySQL. Docker Compose is the local environment; Serv00 PHP shared hosting is the selected production profile.
 
