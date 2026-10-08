@@ -9,7 +9,6 @@ use App\Models\Group;
 use App\Models\Lesson;
 use App\Models\Semester;
 use App\Support\Audit;
-use App\Support\Phone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -40,16 +39,11 @@ class OfferingController extends Controller
         if ($offering) {
             Gate::authorize('manage', $offering);
         }
-        $r->merge(['fee' => str_replace('٫', '.', Phone::digits((string) $r->fee))]);
-        $rules = ['title' => ['required', 'string', 'max:150'], 'timezone' => ['required', 'timezone'], 'fee' => ['required', 'regex:/^\d{1,7}(\.\d{1,2})?$/D'], 'currency' => ['required', Rule::in(['EGP', 'USD', 'SAR'])], 'self_enrollment' => ['sometimes', 'boolean']];
+        $rules = ['title' => ['required', 'string', 'max:150'], 'timezone' => ['required', 'timezone']];
         if (! $offering) {
             $rules += ['course_id' => ['required', 'integer', Rule::exists('courses', 'id')->where('instructor_id', $r->user()->id)->whereNull('archived_at')], 'semester_id' => ['required', 'integer', Rule::exists('semesters', 'id')->where('instructor_id', $r->user()->id)->whereNull('archived_at')], 'uses_groups' => ['sometimes', 'boolean']];
         }
         $data = $r->validate($rules);
-        $parts = explode('.', $data['fee']);
-        $data['fee_minor'] = ((int) $parts[0] * 100) + (int) str_pad($parts[1] ?? '', 2, '0');
-        unset($data['fee']);
-        $data['self_enrollment'] = $r->boolean('self_enrollment');
         $offering = DB::transaction(function () use ($offering, $data, $r) {
             if ($offering) {
                 $offering = CourseOffering::lockForUpdate()->findOrFail($offering->id);
@@ -73,7 +67,7 @@ class OfferingController extends Controller
                     $offering->groups()->create(['name' => 'General']);
                 }
             }
-            Audit::record($r->user(), 'offering_saved', $offering, ['fee_minor' => $offering->fee_minor, 'currency' => $offering->currency]);
+            Audit::record($r->user(), 'offering_saved', $offering);
 
             return $offering;
         });
@@ -98,6 +92,9 @@ class OfferingController extends Controller
                 throw ValidationException::withMessages(['status' => __('ui.cannot_draft')]);
             }
             if (in_array($data['status'], ['completed', 'archived'])) {
+                if ($offering->classSessions()->whereIn('status', ['published', 'in_progress'])->exists()) {
+                    throw ValidationException::withMessages(['status' => __('ui.resolve_sessions_first')]);
+                }
                 foreach ($offering->enrollments()->where('status', 'enrolled')->lockForUpdate()->get() as $enrollment) {
                     $enrollment->memberships()->whereNull('ends_at')->update(['ends_at' => now()]);
                     $enrollment->update(['status' => 'completed']);

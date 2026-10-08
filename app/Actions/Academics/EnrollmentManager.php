@@ -57,7 +57,7 @@ class EnrollmentManager
                 if (! $invite || $invite->course_offering_id !== $offering->id || $invite->group_id !== $groupId || $invite->revoked_at || $invite->expires_at->lte(now()) || ($invite->student_id && $invite->student_id !== $student->id)) {
                     $this->fail('invalid_invitation');
                 }
-            } elseif (! $actor->isInstructor() && ! $offering->self_enrollment) {
+            } elseif (! $actor->isInstructor()) {
                 $this->fail('invitation_required');
             }
             $group = $this->group($offering, $groupId);
@@ -70,7 +70,7 @@ class EnrollmentManager
                 return $existing;
             }
             $this->capacity($group);
-            $enrollment = Enrollment::create(['student_id' => $student->id, 'course_offering_id' => $offering->id, 'group_id' => $group->id, 'status' => 'enrolled', 'agreed_fee_minor' => $offering->fee_minor, 'currency' => $offering->currency, 'joined_at' => now()]);
+            $enrollment = Enrollment::create(['student_id' => $student->id, 'course_offering_id' => $offering->id, 'group_id' => $group->id, 'status' => 'enrolled', 'joined_at' => now()]);
             $enrollment->memberships()->create(['group_id' => $group->id, 'starts_at' => now(), 'reason' => 'enrolled']);
             Audit::record($actor, 'enrolled', $enrollment, ['group_id' => $group->id], null, $offering->instructor_id);
             Notices::send($student, 'notice_enrolled', ['course' => $offering->title], route('student.courses.show', $offering, false));

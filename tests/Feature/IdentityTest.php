@@ -70,7 +70,7 @@ class IdentityTest extends TestCase
         foreach (['/dashboard', '/student/courses', '/student/courses/'.$offering->id, '/instructor/offerings', '/notifications', '/invitations/secret'] as $path) {
             $this->get($path)->assertRedirect('/login');
         }
-        $this->post('/student/courses/'.$offering->id.'/enroll', ['group_id' => $offering->groups->first()->id])->assertRedirect('/login');
+        $this->post('/instructor/offerings/'.$offering->id.'/enrollments', ['identifier' => 'STU-000001', 'group_id' => $offering->groups->first()->id])->assertRedirect('/login');
         $this->assertDatabaseCount('enrollments', 0);
         $this->get('/verify-email')->assertNotFound();
         $this->get('/forgot-password')->assertNotFound();

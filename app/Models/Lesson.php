@@ -20,4 +20,7 @@ class Lesson extends Model
     {
         return $this->belongsTo(CourseOffering::class, 'course_offering_id');
     }
+
+    public function classSessions() { return $this->hasMany(ClassSession::class); }
+    public function attendances() { return $this->hasMany(Attendance::class); }
 }

@@ -36,7 +36,7 @@ abstract class TestCase extends BaseTestCase
         $teacher ??= User::factory()->instructor()->create();
         $course = Course::create(['instructor_id' => $teacher->id, 'name' => 'Computer science', 'code' => 'CS'.fake()->unique()->numberBetween(1, 99999)]);
         $semester = Semester::create(['instructor_id' => $teacher->id, 'name' => 'Autumn', 'starts_on' => '2026-09-01', 'ends_on' => '2027-01-31']);
-        $offering = CourseOffering::create($attributes + ['instructor_id' => $teacher->id, 'course_id' => $course->id, 'semester_id' => $semester->id, 'title' => 'Algorithms', 'fee_minor' => 150000, 'currency' => 'EGP', 'timezone' => 'Africa/Cairo', 'uses_groups' => true, 'status' => 'open', 'self_enrollment' => true]);
+        $offering = CourseOffering::create($attributes + ['instructor_id' => $teacher->id, 'course_id' => $course->id, 'semester_id' => $semester->id, 'title' => 'Algorithms', 'timezone' => 'Africa/Cairo', 'uses_groups' => true, 'status' => 'open']);
         $offering->groups()->createMany([['name' => 'Group A', 'capacity' => 2], ['name' => 'Group B', 'capacity' => 2]]);
 
         return $offering;

@@ -28,7 +28,7 @@ class AcademicPolicy
             return $model->student_id === $user->id;
         }
         if ($model instanceof CourseOffering) {
-            return $model->enrollments()->where('student_id', $user->id)->exists() || ($model->status === 'open' && $model->self_enrollment);
+            return $model->enrollments()->where('student_id', $user->id)->exists();
         }
 
         return false;

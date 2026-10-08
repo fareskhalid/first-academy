@@ -26,7 +26,16 @@ class CourseDirectory extends Component
     {
         abort_unless(auth()->check() && auth()->user()->role === 'student' && auth()->user()->status === 'active', 403);
         $search = mb_substr($this->search, 0, 100);
-        $offerings = CourseOffering::where('status', 'open')->where('self_enrollment', true)->whereHas('course', fn ($q) => $q->whereNull('archived_at'))->whereHas('semester', fn ($q) => $q->whereNull('archived_at'))->where('title', 'like', '%'.addcslashes($search, '%_\\').'%')->with(['course', 'semester', 'instructor:id,name'])->withCount(['enrollments as joined' => fn ($q) => $q->where('student_id', auth()->id())])->orderBy('title')->paginate(12);
+        $offerings = CourseOffering::whereHas('enrollments', fn ($q) => $q->where('student_id', auth()->id()))
+            ->where('title', 'like', '%'.addcslashes($search, '%_\\').'%')
+            ->with([
+                'course',
+                'semester',
+                'instructor:id,name',
+                'enrollments' => fn ($q) => $q->where('student_id', auth()->id()),
+            ])
+            ->orderBy('title')
+            ->paginate(12);
 
         return view('livewire.course-directory', compact('offerings'));
     }

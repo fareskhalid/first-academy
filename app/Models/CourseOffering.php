@@ -13,7 +13,7 @@ class CourseOffering extends Model
 
     protected function casts(): array
     {
-        return ['fee_minor' => 'integer', 'uses_groups' => 'boolean', 'self_enrollment' => 'boolean'];
+        return ['uses_groups' => 'boolean'];
     }
 
     public function course()
@@ -49,5 +49,10 @@ class CourseOffering extends Model
     public function enrollments()
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    public function classSessions()
+    {
+        return $this->hasMany(ClassSession::class);
     }
 }

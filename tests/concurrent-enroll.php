@@ -12,13 +12,13 @@ $app->make(Kernel::class)->bootstrap();
 if (! $app->environment('testing') || config('database.connections.mysql.database') !== 'course_system_testing') {
     exit(9);
 }
-[$script,$offeringId,$studentId,$groupId,$start] = $argv;
+[$script,$offeringId,$actorId,$studentId,$groupId,$start] = $argv;
 while (microtime(true) < (float) $start) {
     usleep(1000);
 }
 try {
-    $user = User::findOrFail($studentId);
-    app(EnrollmentManager::class)->enroll($user, CourseOffering::findOrFail($offeringId), $user, (int) $groupId);
+    $student = User::findOrFail($studentId);
+    app(EnrollmentManager::class)->enroll(User::findOrFail($actorId), CourseOffering::findOrFail($offeringId), $student, (int) $groupId);
     exit(0);
 } catch (ValidationException $e) {
     exit(2);

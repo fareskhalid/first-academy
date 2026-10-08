@@ -177,8 +177,6 @@ return [
         'description' => 'Description',
         'title' => 'Title',
         'timezone' => 'Time zone',
-        'fee' => 'Course fee',
-        'currency' => 'Currency',
         'capacity' => 'Capacity (blank = unlimited)',
         'position' => 'Lesson number',
         'reason' => 'Reason',

@@ -34,11 +34,8 @@ return new class extends Migration
             $t->foreignId('semester_id')->constrained()->restrictOnDelete();
             $t->string('title');
             $t->string('timezone')->default('Africa/Cairo');
-            $t->unsignedBigInteger('fee_minor')->default(0);
-            $t->string('currency', 3)->default('EGP');
             $t->string('status', 20)->default('draft');
             $t->boolean('uses_groups')->default(false);
-            $t->boolean('self_enrollment')->default(true);
             $t->timestamps();
         });
         Schema::create('groups', function (Blueprint $t) {
@@ -65,8 +62,6 @@ return new class extends Migration
             $t->foreignId('course_offering_id')->constrained()->restrictOnDelete();
             $t->foreignId('group_id')->constrained()->restrictOnDelete();
             $t->string('status', 20)->default('enrolled');
-            $t->unsignedBigInteger('agreed_fee_minor');
-            $t->string('currency', 3);
             $t->timestamp('joined_at');
             $t->timestamp('withdrawn_at')->nullable();
             $t->timestamps();

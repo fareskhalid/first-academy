@@ -11,7 +11,7 @@ async function toggle(page, language) {
     await expect(page.getByTestId('language-toggle')).toBeEnabled();
 }
 for (const language of ['en', 'ar']) {
-    test(`${language}: register, sign in by phone and code, enroll in two courses`, async ({ page }, testInfo) => {
+    test(`${language}: register, sign in by phone and code, and see only enrolled courses`, async ({ page }) => {
         const errors=[]; page.on('pageerror',e=>errors.push(e.message));
         const phone='010'+String(Date.now()).slice(-8);
         const password='MobilePassword123!';
@@ -37,27 +37,19 @@ for (const language of ['en', 'ar']) {
         await page.goto('/student/courses');
         for (const title of ['Programming fundamentals','Data structures']) {
             await page.locator('#course-search').fill(title);
-            const card=page.locator('article').filter({has:page.getByRole('heading',{name:title,exact:true})});
-            await expect(card).toHaveCount(1);
-            await card.getByRole('link').click();
-            await page.locator('[name=group_id]').selectOption({label:'Group A'});
-            await page.locator('main form button.primary').click();
-            await expect(page.locator('[role=status]')).toBeVisible();
-            await noOverflow(page);
-            await page.goto('/student/courses');
+            await expect(page.locator('article')).toHaveCount(0);
         }
         await page.goto('/dashboard');
-        await expect(page.locator('article')).toHaveCount(2);
-        await page.screenshot({path:testInfo.outputPath(`dashboard-${language}.png`),fullPage:true});
+        await expect(page.locator('article')).toHaveCount(0);
         await page.locator('form[action$="/logout"] button').click();
         await page.locator('[name=identifier]').fill(code.toLowerCase());
         await page.locator('[name=password]').fill(password);
         await page.locator('main form button.primary').click();
         await expect(page).toHaveURL(/\/dashboard$/);
         await page.goto('/notifications');
-        await expect(page.locator('article')).toHaveCount(3);
+        await expect(page.locator('article')).toHaveCount(1);
         await page.locator('article button').first().click();
-        await expect(page.locator('article button')).toHaveCount(2);
+        await expect(page.locator('article button')).toHaveCount(0);
         await noOverflow(page);
         expect(errors).toEqual([]);
         await page.goto('/instructor/offerings');
@@ -86,7 +78,6 @@ test('instructor creates semester, course, offering and two groups', async ({pag
     await form.locator('[name=semester_id]').selectOption({label:'Semester '+unique});
     await form.locator('[name=course_id]').selectOption({label:'Course '+unique});
     await form.locator('[name=title]').fill('Offering '+unique);
-    await form.locator('[name=fee]').fill('1500.00');
     await form.locator('[name=uses_groups]').check();
     await form.locator('button.primary').click();
     for(const name of ['Group A','Group B']) {

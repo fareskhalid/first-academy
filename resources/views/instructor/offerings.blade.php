@@ -7,6 +7,5 @@
 <x-select name="course_id" label="course" required>@foreach($courses as $item)<option value="{{ $item->id }}">{{ $item->name }}</option>@endforeach</x-select>
 <x-field name="title" required maxlength="150" />
 <x-field name="timezone" value="Africa/Cairo" required dir="ltr" />
-<div class="grid two"><x-field name="fee" value="0.00" inputmode="decimal" required /><x-select name="currency"><option>EGP</option><option>USD</option><option>SAR</option></x-select></div>
-<x-check name="uses_groups" /><x-check name="self_enrollment" :checked="true" /><button class="primary"><x-t k="create" /></button>
+<x-check name="uses_groups" /><button class="primary"><x-t k="create" /></button>
 </form>@endif</section></div></x-layout>

@@ -18,7 +18,7 @@ class ConcurrencyTest extends TestCase
         $group->update(['capacity' => 1]);
         $students = User::factory()->count(2)->create();
         $start = (string) (microtime(true) + 1.5);
-        $processes = $students->map(fn ($student) => new Process([PHP_BINARY, base_path('tests/concurrent-enroll.php'), (string) $offering->id, (string) $student->id, (string) $group->id, $start], base_path(), ['APP_ENV' => 'testing', 'DB_DATABASE' => 'course_system_testing', 'QUEUE_CONNECTION' => 'sync', 'CACHE_STORE' => 'array']));
+        $processes = $students->map(fn ($student) => new Process([PHP_BINARY, base_path('tests/concurrent-enroll.php'), (string) $offering->id, (string) $offering->instructor_id, (string) $student->id, (string) $group->id, $start], base_path(), ['APP_ENV' => 'testing', 'DB_DATABASE' => 'course_system_testing', 'QUEUE_CONNECTION' => 'sync', 'CACHE_STORE' => 'array']));
         foreach ($processes as $process) {
             $process->start();
         }

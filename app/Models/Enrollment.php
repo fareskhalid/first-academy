@@ -13,7 +13,7 @@ class Enrollment extends Model
 
     protected function casts(): array
     {
-        return ['joined_at' => 'datetime', 'withdrawn_at' => 'datetime', 'agreed_fee_minor' => 'integer'];
+        return ['joined_at' => 'datetime', 'withdrawn_at' => 'datetime'];
     }
 
     public function student()
@@ -40,4 +40,9 @@ class Enrollment extends Model
     {
         return $this->hasMany(TransferRequest::class);
     }
+
+    public function attendances() { return $this->hasMany(Attendance::class); }
+    public function entitlements() { return $this->hasMany(CourseEntitlement::class); }
+    public function accessWaivers() { return $this->hasMany(AccessWaiver::class); }
+    public function rosterEntries() { return $this->hasMany(SessionRosterEntry::class); }
 }

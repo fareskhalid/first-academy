@@ -20,4 +20,9 @@ class GroupMembership extends Model
     {
         return $this->belongsTo(Group::class);
     }
+
+    public function enrollment()
+    {
+        return $this->belongsTo(Enrollment::class);
+    }
 }

@@ -2,13 +2,13 @@
 
 **Recommended implementation:** one Laravel application with a mobile-first student portal and an instructor portal, using Blade, Livewire, and Tailwind CSS.
 
-**Version:** 1.4 · **Prepared / updated:** 7 October 2026 · **Status:** Sprint 1 implemented locally; later sprints remain planned.
+**Version:** 1.6 · **Prepared / updated:** 8 October 2026 · **Status:** Sprints 1 and 2 implemented locally; Sprints 3–5 remain planned.
 
 **Confirmed clarification:** every student receives their own first **two attended classes per course** free. The third class they attend requires payment approval or an explicitly recorded instructor exception.
 
-**Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password and must supply a WhatsApp-linked phone number. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions.
+**Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password and must supply a WhatsApp-linked phone number. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions. The application stores no course fee, and students see only offerings in which they are already enrolled through an instructor or invitation.
 
-This document specifies the full product. Sprint 1 is implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, automated checks, and a local HTTPS staging rehearsal. Sections 5.4–5.7 remain the implementation plan for Sprints 2–5. A public staging server, production hosting, and physical-device acceptance still require deployment choices and infrastructure.
+This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. A public staging server, production hosting, automated Sprint 2 acceptance runs, and physical-device acceptance still require separate execution.
 
 **Project setup:** Docker Compose with Laravel Sail-compatible images is the implemented local environment, with container-based CI checks. Section 3.7 defines the setup and acceptance criteria. Production hosting is still selected separately.
 
@@ -93,11 +93,11 @@ These are recommendations, not additional instructions supplied by the instructo
 
 | ID | Proposed default | Reason |
 | --- | --- | --- |
-| BR-06 | Free attendance and payment approval are scoped to a course offering: student + course + semester. Rejoining or changing groups keeps the same enrollment history. | Prevent accidental resets while allowing a new semester to have its own fee and trial. |
+| BR-06 | Free attendance and payment approval are scoped to a course offering: student + course + semester. Rejoining or changing groups keeps the same enrollment history. | Prevent accidental resets while allowing a new semester to have its own trial and payment approval. |
 | BR-07 | Payment activates access to one offering, while the account remains usable for login, schedules, receipts, and personal history. | A student must be able to resolve a payment restriction, and unpaid course A must not block paid course B. |
 | BR-08 | An instructor approves proof of full payment for that offering. Pending or rejected proofs do not unlock paid access. | Uploading a picture is not payment verification. |
 | BR-09 | One active group per enrollment; transfers have an effective time. Present and late count as attended; absent and excused do not. | Keep group rosters and free-class counts predictable. |
-| BR-10 | One full-course fee covers the offering. A reasoned, time-limited instructor waiver can temporarily permit access. | Keep first-release billing manageable while handling legitimate exceptions. |
+| BR-10 | The system does not configure or display a course fee. The instructor reviews payment proof against external payment instructions, and a reasoned, time-limited waiver can temporarily permit access. | Keep payment approval manageable without maintaining a price catalog in the application. |
 
 | ID | Proposed default | Reason |
 | --- | --- | --- |
@@ -183,9 +183,9 @@ No bank credentials, national identity documents, or unrelated demographic data 
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
-| FR-AC-01 | Create and archive semesters, courses, and offerings. | Validate dates; store instructor, timezone, fee, currency, and enrollment policy. Archive preserves attendance, payments, and grades. |
+| FR-AC-01 | Create and archive semesters, courses, and offerings. | Validate dates; store instructor, timezone, state, and group policy. Archive preserves attendance, payments, and grades. |
 | FR-AC-02 | Manage optional groups and lesson identities. | Group names are unique inside an offering; optional capacity is enforced. Sessions of the same lesson across groups share a lesson ID. |
-| FR-AC-03 | Enroll existing student accounts manually, by invitation, or through permitted authenticated QR enrollment. | One enrollment per student/offering; one active group. Self-enrollment requires sign-in, is available only if enabled, and respects capacity. Invitation/QR links grant no permission before authentication; returning students reuse their enrollment. |
+| FR-AC-03 | Enroll existing student accounts manually or by invitation. | One enrollment per student/offering and one active group. Students see only offerings in which they already have an enrollment record. Invitations grant no permission before authentication; returning students reuse their enrollment. |
 | FR-AC-05 | Transfer, withdraw, and restore enrollments with history. | Group transfers affect future eligibility from their effective time, leave past records attached to the original group, and preserve course payment and free-class usage. |
 
 An offering is `draft`, `open`, `completed`, or `archived`. An enrollment is `enrolled`, `withdrawn`, or `completed`; its payment access is calculated separately. Restoring a withdrawn enrollment retains its original ID and history. New attendance and test starts require an open offering. Do not complete/archive an offering while sessions or attempts remain active; resolve them first. Released history stays available to its owners.
@@ -227,7 +227,7 @@ The attendance window is independent of the session lifecycle, allowing check-in
 
 1. The student uses the phone's normal camera to open the QR URL. Authentication is checked before class details are displayed or any attendance work begins. A signed-out visitor is sent to login; the server may preserve only the intended internal destination, not an attendance intent or accepted scan time.
 2. An existing student signs in using their phone/student code and password. A new student registers a regular account, then signs in. The destination may be restored, but the QR must still be valid at that time; otherwise request a fresh scan. Authentication grants no pre-login timing grace.
-3. The authenticated student sees the course, group, and class and taps “Record attendance.” The server validates the current token and creates an intent bound to that user, browser session, and class; it then attempts check-in. Only this authenticated action can create/reuse an eligible enrollment when QR self-enrollment is enabled.
+3. The authenticated, already-enrolled student sees the course, group, and class and taps “Record attendance.” The server validates the current token and creates an intent bound to that user, browser session, and class; it then attempts check-in. Attendance QR codes never create an enrollment.
 4. Inside one database transaction, the system checks the latest access state and writes or returns the attendance. If payment or enrollment is blocked, it gives the exact next step. No guest record, temporary identity, or anonymous attendance is created.
 5. Only a committed server result produces the success screen. Refresh/retry returns that same record; an unknown network result says “Checking attendance status” until resolved.
 
@@ -273,7 +273,7 @@ Students cannot freely scan another group's QR to transfer themselves. The instr
 
 #### Absence and correction policy
 
-The expected roster is captured when the attendance window opens from membership effective at that time. Valid enrollment through that session's QR adds the student to its roster. A later enrollment or group transfer does not create retrospective absences.
+The expected roster is captured when the attendance window opens from membership effective at that time. A QR scan from a student without an existing eligible enrollment is rejected and does not change the roster. A later enrollment or group transfer does not create retrospective absences.
 
 After the instructor confirms delivery and all valid intents expire, unresolved roster entries become absent. An excused record does not consume a free class. A payment-blocked student on the roster is absent with a separate `payment_required` reason unless the instructor records an excuse or exception. A cancelled/undelivered session is excluded.
 
@@ -291,7 +291,7 @@ If connectivity fails, show “Attendance not confirmed” and allow a status ch
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
-| FR-PY-01 | Display fee, payment instructions, and access status per offering. | Student sees remaining free attendances and where/how to pay, including required reference information. Changing a fee does not rewrite an existing enrollment's agreed fee. |
+| FR-PY-01 | Display payment instructions and access status per offering. | Student sees remaining free attendances and where/how to pay, including required reference information. The application does not configure or display a course fee. |
 | FR-PY-02 | Accept a private payment proof upload. | JPEG, PNG, or PDF up to 10 MB; collect amount, currency, payment date, method, and reference if available. Reject invalid files without losing other entered fields. |
 | FR-PY-03 | Provide an instructor review queue. | Filter by offering/status; inspect proof and enrollment; approve or reject with a reason. Rejection is visible to the student with instructions to resubmit. |
 | FR-PY-04 | Apply review decisions consistently. | Approving proof and creating course entitlement happen in one transaction. Repeated/concurrent review does not duplicate credit; approval for one course cannot unlock another. |
@@ -310,9 +310,9 @@ rejected/revoked -> new submission (new proof)
 
 The instructor verifies the receipt against actual received funds outside the system. The application does not claim bank verification, issue a tax invoice, or execute a refund. A partial, wrong-currency, or wrong-course payment cannot automatically activate the offering. The instructor rejects it with guidance or creates a reasoned waiver; installments are deferred.
 
-Payments may be submitted before the free classes are used. Approval provides course access through the offering's end, subject to enrollment/account status. Any extension is explicit. A fee of zero creates an audited zero-fee entitlement instead of requiring a fabricated receipt.
+Payments may be submitted before the free classes are used. Approval provides course access through the offering's end, subject to enrollment/account status. Any extension or waiver is explicit and audited.
 
-Store monetary values in integer minor units with currency; never use floating-point arithmetic for fees. The currency's decimal scale is explicit. Receipt reference/hash matches produce a review warning, not automatic rejection: repeated references and identical files require human interpretation.
+If claimed or confirmed payment amounts are recorded from a receipt, store them in integer minor units with currency and never use floating-point arithmetic. Receipt reference/hash matches produce a review warning, not automatic rejection: repeated references and identical files require human interpretation.
 
 Approval remains manual even if file checks succeed. Proposed operating target: review within 24 hours and clear pending receipts before a student's next paid class. The dashboard highlights overdue reviews.
 
@@ -393,7 +393,7 @@ Payment reports summarize instructor-approved evidence of external payments; the
 | --- | --- | --- |
 | Entry and identity | Register, phone/code login, authenticated profile/password change, recovery instructions, authenticated QR landing | Language selector, phone keyboard and code-friendly input; no verification screen. Class details and intent creation appear only after sign-in; no forced app installation. |
 | Student learning | Home, My Courses, course detail/schedule, attendance history, tests/results | Agenda and cards; status in words; large primary action; no desktop-only table dependency. |
-| Student payment | Fee instructions, upload, preview, submission status, rejection details | Choose image/PDF, see upload progress, retry, and verify the destination course before submit. |
+| Student payment | Payment instructions, upload, preview, submission status, rejection details | Choose image/PDF, see upload progress, retry, and verify the destination course before submit. |
 | Instructor operations | Dashboard, course/group roster, weekly planner, QR display, attendance review | Responsive tables with focused detail screens; large QR projection mode; agenda alternative to calendar grids. |
 | Instructor assessment/billing | Receipt review, test builder, grading, reports/settings | Save draft state; explicit approval/publish actions; confirmation for destructive operations. |
 
@@ -510,7 +510,7 @@ flowchart LR
 | Identity and access | Phone/code credentials, WhatsApp contact, roles, recovery, locale, policies | `RegisterStudent`, `ResetStudentPassword`, `SuspendStudent` |
 | Academics and scheduling | Semesters, offerings, groups, enrollments, lessons, sessions | `PublishWeek`, `TransferEnrollment` |
 | Attendance | QR credentials/intents, expected rosters, credits, corrections | `RecordAttendance`, `FinalizeSessionAttendance` |
-| Payments | Fee snapshots, receipt review, course entitlements, waivers | `SubmitPaymentProof`, `ApprovePaymentProof` |
+| Payments | Receipt review, course entitlements, and waivers | `SubmitPaymentProof`, `ApprovePaymentProof` |
 | Assessments and communication | Tests, attempts, answers, grades, notices, reports | `StartAttempt`, `SaveAnswer`, `ReleaseResults` |
 
 Controllers and Livewire components collect validated input and invoke these actions. Actions own business decisions and transactions. Laravel policies check who can access each resource; reusable validators handle payload shape. [Laravel authorization](https://laravel.com/docs/13.x/authorization).
@@ -530,14 +530,14 @@ The following is the minimum conceptual schema. Normal timestamps, primary keys,
 | `users` | Role, full name, normalized Egyptian login phone, student code, password hash, account status, preferred locale (`en`/`ar`), password-change-required flag and temporary-password expiry | Unique login phone; unique student code required for students; registration assigns student role. No required email or email/phone verification fields. |
 | `student_profiles` | User, required `whatsapp_phone`, WhatsApp self-declaration time, university, optional institution student ID | One profile per student; contact is not a login/recovery identifier; university ID is separate from student code. |
 | `semesters` / `courses` | Owner, name/code; semester date range; archive state | Stable IDs; course code unique within its owner. |
-| `course_offerings` | Course, semester, instructor, timezone, default fee/currency, state, enrollment policy | Offering is the scope for permissions, fees, free attendance, and tests. |
+| `course_offerings` | Course, semester, instructor, timezone, state, and group policy | Offering is the scope for permissions, free attendance, payment approval, and tests. |
 | `groups` / `lessons` | Offering, group name/capacity; lesson title/order | Unique group name within offering; same lesson can have sessions for several groups. |
 
 #### Enrollment, schedule, and attendance
 
 | Entity | Essential data | Important constraints |
 | --- | --- | --- |
-| `enrollments` / `group_memberships` | Student, offering, status, joined/withdrawn times, agreed fee snapshot; group effective start/end | Unique student/offering; non-overlapping group membership periods. |
+| `enrollments` / `group_memberships` | Student, offering, status, joined/withdrawn times; group effective start/end | Unique student/offering; non-overlapping group membership periods. Student course queries require this enrollment. |
 | `class_sessions` | Offering, group, lesson, scheduled start/end, location, publication/delivery state, attendance settings, QR revision | Group and lesson must belong to the same offering; prevent duplicate active group/lesson meetings unless deliberately modeled as separate lessons. |
 | `session_roster_entries` | Session, enrollment, eligibility source, group snapshot, expected/excused status | Unique session/enrollment; preserve historical expectations and explicitly link makeup attendance. |
 | `attendance_intents` / `qr_credentials` | Session, token hash or credential reference, issued/expiry/revocation time; authenticated student ID, browser binding, acceptance time, consumed time | Intent user is required at creation and cannot be reassigned; no anonymous intents. Never log raw tokens; each intent consumable once; QR is shared by the class. Expiring QR credentials may live in Redis. |
@@ -553,7 +553,7 @@ Absence finalization uses roster obligations grouped by enrollment/lesson, so an
 | --- | --- | --- |
 | `payment_proofs` | Enrollment, private file key, detected MIME/size/hash, scan status, claimed amount/currency/date/method/reference, review state | One current pending proof per enrollment enforced transactionally; claims remain separate from reviewer-confirmed values. |
 | `payment_reviews` | Proof, reviewer, decision, confirmed amount/currency, reason, time | Append-only decisions; a proof has one effective approval; rejection/revocation requires reason. |
-| `course_entitlements` | Enrollment, source proof or zero-fee decision, valid-from/until, revocation details | Scope to one enrollment; overlapping grants must not duplicate financial totals. |
+| `course_entitlements` | Enrollment, source proof or instructor waiver, valid-from/until, revocation details | Scope to one enrollment; overlapping grants must not duplicate access periods. |
 | `access_waivers` | Enrollment, covered actions, start/end, reason, issuing instructor | Expiry is checked on every new protected action, even if cleanup has not run. |
 | `stored_files` | Owner/context, storage key, content type, size, scan state, retention date | Private by default; only safe files can be previewed/downloaded by an authorized actor. |
 
@@ -739,7 +739,7 @@ Destructive deletion, payment revocation, attempt invalidation, and archival act
 
 | ID | Given / when | Required result | Main requirements |
 | --- | --- | --- | --- |
-| AT-01 | A signed-out student opens a QR, registers a regular account, and then signs in. | Before sign-in there is no class disclosure, enrollment, attendance, or intent. After sign-in, a valid QR and explicit check-in create one free attendance; an expired QR requires a fresh scan. | FR-ID-02, FR-AC-03, FR-AT-02 |
+| AT-01 | A signed-out enrolled student opens a QR and then signs in. | Before sign-in there is no class disclosure, enrollment, attendance, or intent. After sign-in, an existing eligible enrollment, valid QR, and explicit check-in create one free attendance; an expired QR requires a fresh scan. | FR-ID-02, FR-AC-03, FR-AT-02 |
 | AT-02 | A late-joining student attends two valid lessons after missing earlier scheduled classes. | Both are free, regardless of the course's class number. Absence did not consume an allowance. | BR-03, FR-AT-03 |
 | AT-03 | Two devices concurrently request different lessons with one free attendance remaining and no payment. | Exactly one new free attendance is committed; the other requires payment. | FR-AT-03 |
 | AT-04 | A successful second free check-in is repeated after token expiry. | The authorized student receives the original record, with no new attendance or erroneous payment denial. | FR-AT-03 |
@@ -791,7 +791,7 @@ These scenarios are a critical subset. Each functional requirement row also supp
 
 | Test layer | What to prove | When |
 | --- | --- | --- |
-| PHP unit/domain tests | Egyptian phone/code normalization, free count, access decisions, fee rules, grading/deadlines, and Saturday week boundaries across timezone changes | Alongside each relevant feature |
+| PHP unit/domain tests | Egyptian phone/code normalization, free count, enrollment-scoped access decisions, payment approval rules, grading/deadlines, and Saturday week boundaries across timezone changes | Alongside each relevant feature |
 | MySQL feature/integration tests | Permissions, transactions, race conditions, file lifecycle, notifications, and roster history | Every sprint; real concurrent connections for concurrency tests |
 | Browser tests | Regular registration then phone/code login, blocked signed-out actions, authenticated check-in, receipts, tests/resume, and instructor review in both languages | Add as each workflow becomes available |
 | Physical-device review | English/LTR and Arabic/RTL, camera URL handling, file selection, phone/code keyboard, zoom, screen readers, and connection interruption | Sprint 1 prototype, then Sprints 2–5 as screens arrive |
@@ -837,7 +837,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 | Sprint | Time | Demonstrable outcome | Dependencies |
 | --- | --- | --- | --- |
-| 1 | Weeks 1–2 | Reproducible Docker setup and CI; bilingual account/course screens; students register, sign in with phone/code, and enroll. | Docker-capable development machines, product defaults, Arabic wording review, device sample, repository/hosting access |
+| 1 | Weeks 1–2 | Reproducible Docker setup and CI; bilingual account/course screens; students register, sign in with phone/code, receive instructor/invitation enrollment, and see only their courses. | Docker-capable development machines, product defaults, Arabic wording review, device sample, repository/hosting access |
 | 2 | Weeks 3–4 | Instructor publishes a Saturday–Friday week; signed-in students scan and use exactly two free attended classes. | Sprint 1 identity, ownership, enrollment, locale foundation |
 | 3 | Weeks 5–6 | Student uploads proof; instructor approves; paid course attendance unlocks in both languages. | Sprint 2 attendance/access decisions; private storage/in-app notifications |
 | 4 | Weeks 7–8 | Instructor publishes a timed test; eligible students take it on phones and see released grades. | Accounts, enrollment, payment access, scheduling/time conventions |
@@ -853,13 +853,15 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 4. Build English/LTR and Arabic/RTL layouts, locale selection, profile screens, and course cards: FR-LC-01–05/FR-RP-01–02 foundations. Establish audit recording and localized in-app notices: FR-RP-05/FR-NT-01 foundations.
 5. Test registration followed by sign-in, phone/code normalization/uniqueness, required WhatsApp contact, no-verification access, blocked anonymous actions, group capacity, and both layout directions: AT-21–24 as applicable. Seed a synthetic offering with two groups.
 
-**Exit criteria:** an instructor can create an offering with two groups; a student can register with required phone/WhatsApp data, sign in using either identifier, and then enroll in two offerings. No email/phone verification is requested and signed-out users cannot perform course actions. Both languages work on staging, with localized in-app notices and running workers/scheduler; browser support is documented.
+**Exit criteria:** an instructor can create an offering with two groups and enroll a registered student manually or by invitation; the student can sign in using either identifier and see only their enrolled offerings. No email/phone verification is requested and signed-out users cannot perform course actions. Both languages work on staging, with localized in-app notices and running workers/scheduler; browser support is documented.
 
 **Setup acceptance:** a second clean checkout starts successfully using Git and Docker without host PHP/Node/MySQL/Redis. Schema creation, instructor setup, asset build, tests, queue processing, and scheduler heartbeat work; routine stop/start and container recreation preserve a sample record and private file. Test resources are isolated, and the production runtime decision is recorded: ENV-01–04 plus ENV-05's local requirements.
 
-**Review demo:** instructor setup, student registration, then phone/code sign-in and enrollment on a phone, switching between English and Arabic. No production teaching pilot yet.
+**Review demo:** instructor setup, student registration, instructor/invitation enrollment, then phone/code sign-in and enrolled-course access on a phone, switching between English and Arabic. No production teaching pilot yet.
 
 ### 5.4 Sprint 2 — weekly schedule and QR attendance
+
+**Implementation status (8 October 2026):** application implementation complete. Automated and device acceptance were intentionally not run in this implementation pass at the user's request; the acceptance scenarios below remain the release gate.
 
 **Outcome:** authenticated free attendance and Saturday–Friday scheduling work in both languages; signed-out scans grant no attendance rights.
 
@@ -877,9 +879,9 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 **Outcome:** receipt review controls course access without blocking login or other courses.
 
-1. Build fee/instruction screens and course access labels using enrollment fee snapshots: FR-PY-01 and FR-RP-02 payment states.
+1. Build payment-instruction screens and course access labels using enrollment payment states: FR-PY-01 and FR-RP-02.
 2. Implement private uploads, validation, quarantine/scanning, preview/download authorization, and submission history: FR-PY-02.
-3. Implement review queue, approval/rejection, resubmission, revocation, zero-fee grants, and bounded waivers: FR-PY-03–05. Apply the same access decision in attendance and manual corrections.
+3. Implement review queue, approval/rejection, resubmission, revocation, and bounded waivers: FR-PY-03–05. Apply the same access decision in attendance and manual corrections.
 4. Add payment notifications, pending-review dashboard, and approved-payment reporting foundation: FR-NT-03, FR-RP-01/04.
 5. Run AT-11–15 as applicable before tests exist, approval/check-in concurrency tests, and iPhone/Android upload checks. Verify that unapproved files and receipts are never public.
 
@@ -939,8 +941,8 @@ The attendance interpretation, Saturday week start, English/Arabic support, phon
 
 | Decision | Default used in this document | Latest decision point |
 | --- | --- | --- |
-| Commercial/access policy | Payment and two free attendances reset for each semester offering; one full fee; instructor reviews proofs; zero-fee grants/waivers allowed. Instructor supplies fee, currency, payment methods, and receiving instructions. | Before Sprint 1 data model and Sprint 3 payment screens |
-| Academic operations | One active group; shared lesson identities across groups; configurable offering timezone; authenticated self-enrollment from a valid QR enabled when capacity permits. Saturday week start is fixed. | Sprint 1 review |
+| Commercial/access policy | Payment approval and two free attendances reset for each semester offering. The system stores no course fee; the instructor reviews proofs and supplies payment methods and receiving instructions. Audited waivers are allowed. | Before Sprint 3 payment screens |
+| Academic operations | One active group; shared lesson identities across groups; configurable offering timezone; instructor/invitation enrollment only; students see only their enrolled offerings. Saturday week start is fixed. | Confirmed in Sprint 1 |
 | Account recovery, locale details, and devices | Review instructor-assisted recovery, optional instructor authenticator-app 2FA, generated student-code format, and English fallback when no supported browser preference exists. Both languages and no email/phone verification are fixed; sample student devices determine browser support. | Sprint 1 prototype |
 | Assessments | Standard tests follow trial/payment eligibility; optional free or paid-only tests; single-choice/true-false/text questions; one initial attempt; no code execution; instructor-controlled result release. | Before Sprint 4 |
 | Setup, operations, and retention | Docker Compose/Sail is the recommended local setup; confirm team OS/CPU support and choose hardened container hosting or managed/non-container production. Proposed 2,000-student envelope, 24-hour receipt review, and 24-month history; select providers, region, budget, and retention. | Setup/hosting/capacity in Sprint 1; production readiness/retention before Sprint 5 |

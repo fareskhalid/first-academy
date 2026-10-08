@@ -1,12 +1,11 @@
 <x-layout title="course">
-<div class="hero"><div><div class="eyebrow">{{ $offering->semester->name }} · {{ $offering->course->code }}</div><h1>{{ $offering->title }}</h1><p>{{ $offering->timezone }} · {{ number_format($offering->fee_minor / 100,2) }} {{ $offering->currency }}</p></div><x-status :value="$offering->status" /></div>
+<div class="hero"><div><div class="eyebrow">{{ $offering->semester->name }} · {{ $offering->course->code }}</div><h1>{{ $offering->title }}</h1><p>{{ $offering->timezone }}</p></div><x-status :value="$offering->status" /></div>
 @if(session('invitation_url'))<div class="alert"><x-t k="invitation" />: <a dir="ltr" href="{{ session('invitation_url') }}">{{ session('invitation_url') }}</a></div>@endif
 @if(session('temporary_password'))<div class="alert"><p><x-t k="temporary_password" /></p><strong dir="ltr">{{ session('temporary_password') }}</strong></div>@endif
 <section class="panel"><details><summary><x-t k="settings" /></summary><div class="grid two">
 <form method="POST" action="{{ route('instructor.offerings.update',$offering) }}" class="stack">@csrf @method('PUT')
 <x-field name="title" :value="$offering->title" required /><x-field name="timezone" :value="$offering->timezone" required />
-<div class="grid two"><x-field name="fee" :value="number_format($offering->fee_minor/100,2,'.','')" inputmode="decimal" required /><x-select name="currency">@foreach(['EGP','USD','SAR'] as $c)<option @selected($c === $offering->currency)>{{ $c }}</option>@endforeach</x-select></div>
-<x-check name="self_enrollment" :checked="$offering->self_enrollment" /><button class="primary"><x-t k="save" /></button></form>
+<button class="primary"><x-t k="save" /></button></form>
 <form method="POST" action="{{ route('instructor.offerings.status',$offering) }}" class="stack" @submit="if (!confirm($store.i18n.t('confirm_status'))) $event.preventDefault()">@csrf
 <x-select name="status">@foreach(['draft','open','completed','archived'] as $status)<option value="{{ $status }}" @selected($status === $offering->status) x-text="$store.i18n.t(@js($status))">{{ __('ui.'.$status) }}</option>@endforeach</x-select>
 <x-field name="reason" id="status-reason" required maxlength="500" /><p class="muted"><x-t k="confirm_status" /></p><button class="secondary"><x-t k="save" /></button></form>
@@ -35,7 +34,7 @@
 <section class="panel"><h2><x-t k="roster" /> <span class="muted">({{ $offering->enrollments->count() }})</span></h2>
 @forelse($offering->enrollments as $enrollment)
 <details><summary><span class="row between"><span>{{ $enrollment->student->name }} · <bdi>{{ $enrollment->student->student_code }}</bdi></span><x-status :value="$enrollment->status" /></span></summary>
-<p class="muted"><bdi>{{ $enrollment->student->phone }}</bdi> · <x-t k="whatsapp_phone" />: <bdi>{{ $enrollment->student->profile?->whatsapp_phone }}</bdi> · {{ $enrollment->group?->name }} · {{ number_format($enrollment->agreed_fee_minor/100,2) }} {{ $enrollment->currency }}</p>
+<p class="muted"><bdi>{{ $enrollment->student->phone }}</bdi> · <x-t k="whatsapp_phone" />: <bdi>{{ $enrollment->student->profile?->whatsapp_phone }}</bdi> · {{ $enrollment->group?->name }}</p>
 <div class="grid two"><form method="POST" action="{{ route('instructor.enrollments.update',$enrollment) }}" class="stack" @submit="if (!confirm($store.i18n.t('confirm_enrollment'))) $event.preventDefault()">@csrf @method('PUT')
 <x-select name="action" :id="'enrollment-action-'.$enrollment->id" label="action">@foreach($enrollment->status === 'enrolled' ? ['transfer','withdraw'] : ['restore'] as $action)<option value="{{ $action }}" x-text="$store.i18n.t(@js($action))">{{ __('ui.'.$action) }}</option>@endforeach</x-select>
 <x-select name="group_id" :id="'enrollment-group-'.$enrollment->id" label="group">@foreach($activeGroups as $group)<option value="{{ $group->id }}" @selected($group->id === $enrollment->group_id)>{{ $group->name }}</option>@endforeach</x-select>

@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Instructor\EnrollmentController;
 use App\Http\Controllers\Instructor\OfferingController;
+use App\Http\Controllers\Instructor\ScheduleController;
 use App\Http\Controllers\Instructor\SetupController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StudentController;
@@ -27,10 +29,15 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::view('/notifications', 'notifications')->name('notifications');
     Route::get('/student/courses', [StudentController::class, 'index'])->name('student.courses');
     Route::get('/student/courses/{offering}', [StudentController::class, 'show'])->name('student.courses.show');
-    Route::post('/student/courses/{offering}/enroll', [StudentController::class, 'enroll'])->name('student.enroll');
     Route::post('/student/enrollments/{enrollment}/transfer', [StudentController::class, 'transfer'])->name('student.transfer');
     Route::get('/invitations/{token}', [StudentController::class, 'invitationShow'])->name('invitations.show');
     Route::post('/invitations/{token}', [StudentController::class, 'invitationAccept'])->name('invitations.accept');
+    Route::get('/attendance/scan/{token}', [AttendanceController::class, 'scan'])->name('attendance.scan');
+    Route::post('/attendance/scan/{token}', [AttendanceController::class, 'start'])->name('attendance.start');
+    Route::post('/attendance/code', [AttendanceController::class, 'code'])->middleware('throttle:attendance-code')->name('attendance.code');
+    Route::get('/attendance/intents/{intent}', [AttendanceController::class, 'intent'])->name('attendance.intent');
+    Route::post('/attendance/intents/{intent}', [AttendanceController::class, 'record'])->name('attendance.record');
+    Route::get('/attendance/intents/{intent}/result', [AttendanceController::class, 'result'])->name('attendance.result');
     Route::prefix('instructor')->name('instructor.')->middleware('instructor')->group(function () {
         Route::get('/setup', [SetupController::class, 'index'])->name('setup');
         Route::post('/setup/{kind}', [SetupController::class, 'save'])->whereIn('kind', ['semesters', 'courses'])->name('setup.store');
@@ -53,5 +60,16 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/invitations/{invitation}/revoke', [EnrollmentController::class, 'revoke'])->name('invitations.revoke');
         Route::post('/transfers/{transfer}', [EnrollmentController::class, 'review'])->name('transfers.review');
         Route::get('/audit', [DashboardController::class, 'audit'])->name('audit');
+        Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule');
+        Route::post('/schedule/sessions', [ScheduleController::class, 'store'])->name('sessions.store');
+        Route::put('/schedule/sessions/{classSession}', [ScheduleController::class, 'update'])->name('sessions.update');
+        Route::patch('/schedule/sessions/{classSession}/move', [ScheduleController::class, 'move'])->name('sessions.move');
+        Route::post('/schedule/publish', [ScheduleController::class, 'publish'])->name('schedule.publish');
+        Route::post('/schedule/copy', [ScheduleController::class, 'copy'])->name('schedule.copy');
+        Route::get('/schedule/sessions/{classSession}', [ScheduleController::class, 'show'])->name('sessions.show');
+        Route::post('/schedule/sessions/{classSession}/transition', [ScheduleController::class, 'transition'])->name('sessions.transition');
+        Route::get('/schedule/sessions/{classSession}/qr', [ScheduleController::class, 'qr'])->name('sessions.qr');
+        Route::post('/schedule/sessions/{classSession}/attendance', [ScheduleController::class, 'correct'])->name('sessions.attendance.correct');
+        Route::post('/schedule/sessions/{classSession}/makeup', [ScheduleController::class, 'authorizeMakeup'])->name('sessions.makeup');
     });
 });

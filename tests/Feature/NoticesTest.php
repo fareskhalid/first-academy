@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Actions\Academics\EnrollmentManager;
 use App\Jobs\DeliverNotice;
 use App\Livewire\CourseDirectory;
 use App\Livewire\NotificationCenter;
@@ -30,13 +31,14 @@ class NoticesTest extends TestCase
         $this->assertNotNull($user->notifications()->sole()->read_at);
     }
 
-    public function test_livewire_directory_is_authenticated_and_only_lists_open_public_offerings(): void
+    public function test_livewire_directory_is_authenticated_and_only_lists_students_enrollments(): void
     {
         $visible = $this->offering(attributes: ['title' => 'Visible course']);
-        $this->offering(attributes: ['title' => 'Private course', 'self_enrollment' => false]);
-        $this->offering(attributes: ['title' => 'Draft course', 'status' => 'draft']);
+        $hidden = $this->offering(attributes: ['title' => 'Other course']);
+        $student = User::factory()->create();
+        app(EnrollmentManager::class)->enroll($visible->instructor, $visible, $student, $visible->groups->first()->id);
         Livewire::test(CourseDirectory::class)->assertForbidden();
-        Livewire::actingAs(User::factory()->create())->test(CourseDirectory::class)->assertSee('Visible course')->assertDontSee('Private course')->assertDontSee('Draft course')->set('search', 'Missing')->assertDontSee('Visible course');
+        Livewire::actingAs($student)->test(CourseDirectory::class)->assertSee('Visible course')->assertDontSee($hidden->title)->set('search', 'Missing')->assertDontSee('Visible course');
     }
 
     public function test_localization_dictionaries_have_matching_keys_and_business_messages(): void

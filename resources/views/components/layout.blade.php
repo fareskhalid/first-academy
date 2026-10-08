@@ -22,7 +22,7 @@
     @auth
     <nav class="nav" aria-label="{{ __('ui.app_name') }}">
         @php($links = auth()->user()->isInstructor()
-            ? ['dashboard'=>['dashboard','home'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','book'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
+            ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','book'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
             : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
         @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><x-icon :name="$icon" :size="19" /><x-t :k="$key" /></a>@endforeach
     </nav>
