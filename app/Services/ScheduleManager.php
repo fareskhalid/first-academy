@@ -32,8 +32,8 @@ class ScheduleManager
 
             $group = $offering->groups()->whereNull('archived_at')->findOrFail($data['group_id']);
             $lesson = $offering->lessons()->whereNull('archived_at')->findOrFail($data['lesson_id']);
-            $start = CarbonImmutable::parse($data['scheduled_start'], $offering->timezone)->utc();
-            $end = CarbonImmutable::parse($data['scheduled_end'], $offering->timezone)->utc();
+            $start = CarbonImmutable::parse($data['scheduled_start'], $offering->timezone)->setTimezone(config('database.timezone'));
+            $end = CarbonImmutable::parse($data['scheduled_end'], $offering->timezone)->setTimezone(config('database.timezone'));
             $localStart = $start->setTimezone($offering->timezone);
             $localEnd = $end->setTimezone($offering->timezone);
 
@@ -46,13 +46,13 @@ class ScheduleManager
             }
 
             $opens = isset($data['attendance_opens'])
-                ? CarbonImmutable::parse($data['attendance_opens'], $offering->timezone)->utc()
+                ? CarbonImmutable::parse($data['attendance_opens'], $offering->timezone)->setTimezone(config('database.timezone'))
                 : $start->subMinutes((int) config('academic.attendance_opens_minutes_before', 15));
             $closes = isset($data['attendance_closes'])
-                ? CarbonImmutable::parse($data['attendance_closes'], $offering->timezone)->utc()
+                ? CarbonImmutable::parse($data['attendance_closes'], $offering->timezone)->setTimezone(config('database.timezone'))
                 : $start->addMinutes((int) config('academic.attendance_closes_minutes_after_start', 30))->min($end);
             $late = isset($data['late_after'])
-                ? CarbonImmutable::parse($data['late_after'], $offering->timezone)->utc()
+                ? CarbonImmutable::parse($data['late_after'], $offering->timezone)->setTimezone(config('database.timezone'))
                 : $start->addMinutes((int) config('academic.late_minutes_after_start', 10));
 
             if (! $opens->lt($closes) || $closes->gt($end) || $late->lt($opens) || $late->gt($closes)) {
@@ -133,8 +133,8 @@ class ScheduleManager
     public function copyPreviousWeek(User $actor, CourseOffering $offering, CarbonImmutable $targetWeek): int
     {
         abort_unless($offering->instructor_id === $actor->id, 403);
-        $sourceStart = $targetWeek->subWeek()->utc();
-        $sourceEnd = $targetWeek->utc();
+        $sourceStart = $targetWeek->subWeek()->setTimezone(config('database.timezone'));
+        $sourceEnd = $targetWeek->setTimezone(config('database.timezone'));
         $count = 0;
 
         DB::transaction(function () use ($actor, $offering, $sourceStart, $sourceEnd, &$count) {

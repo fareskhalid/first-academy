@@ -16,10 +16,10 @@ Open <http://localhost:8088>. The instructor command asks for the password priva
 For optional synthetic courses with two groups:
 
 ```bash
-bash scripts/demo.sh
+docker compose exec -e DEMO_PASSWORD='local-demo-password' laravel.test php artisan db:seed --class=DemoSeeder
 ```
 
-The generated local demo password is stored in `.local/demo-credentials.txt`, which is ignored by Git. `DatabaseSeeder` remains empty and no historical-data import exists.
+The demo instructor uses phone `01000000001` and the password supplied in the command. `DatabaseSeeder` remains empty and no historical-data import exists.
 
 ## Daily commands
 
@@ -44,7 +44,7 @@ Open <https://localhost:8448>. The generated 30-day certificate is self-signed a
 
 ## Serv00 deployment
 
-Use [the Serv00 deployment runbook](docs/deployment-serv00.md). It keeps Docker out of production, selects PHP 8.5 and Node 24, stores sessions/cache/queues in Serv00 MySQL, and runs scheduling plus queued jobs from one locked minute cron entry.
+Production is live at <https://first-academy.fareskhalid.serv00.net>. Use [the Serv00 operations runbook](docs/deployment-serv00.md) for the GitHub Actions deployment, persistent environment, cron worker, health check, and troubleshooting commands.
 
 ## Documentation
 

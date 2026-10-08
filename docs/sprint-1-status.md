@@ -12,7 +12,7 @@ Updated 8 October 2026.
 
 ## Work in progress / external decisions
 
-- Serv00 is the selected production host and its environment template, deploy script, web-root layout, and cron worker are documented. Public staging is not deployed because no server, domain, or deployment credentials were supplied.
+- Production is deployed on Serv00 at `https://first-academy.fareskhalid.serv00.net` through the repository's GitHub Actions workflow. The persistent environment, PHP configuration, cron worker, health check, and recovery commands are documented.
 - Physical Android/iPhone review and Arabic wording approval need the instructor's devices/content review. Browser emulation is automated.
 - Off-host backups, monitoring, retention values, verified Serv00 capacity, and optional instructor authenticator-app 2FA remain product/operations decisions.
 

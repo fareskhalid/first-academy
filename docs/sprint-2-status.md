@@ -13,7 +13,7 @@ Updated 8 October 2026.
 ## Not executed in this pass
 
 - Automated PHP, browser, concurrency, formatting, and static-analysis commands were not run because this implementation was requested without testing.
-- Physical Android/iPhone QR scanning, weak-network behavior, Arabic wording review, and public staging acceptance remain release validation work.
+- Physical Android/iPhone QR scanning, weak-network behavior, Arabic wording review, and production acceptance remain release validation work.
 
 ## Planned
 

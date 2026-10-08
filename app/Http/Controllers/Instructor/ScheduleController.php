@@ -27,7 +27,8 @@ class ScheduleController extends Controller
         $offerings = CourseOffering::where('instructor_id', $request->user()->id)->where('status', 'open')
             ->with(['groups' => fn ($query) => $query->whereNull('archived_at'), 'lessons' => fn ($query) => $query->whereNull('archived_at')])->get();
         $sessions = ClassSession::whereHas('offering', fn ($query) => $query->where('instructor_id', $request->user()->id))
-            ->where('scheduled_start_at', '>=', $week->subDays(2)->utc())->where('scheduled_start_at', '<', $week->addDays(9)->utc())
+            ->where('scheduled_start_at', '>=', $week->subDays(2)->setTimezone(config('database.timezone')))
+            ->where('scheduled_start_at', '<', $week->addDays(9)->setTimezone(config('database.timezone')))
             ->with(['offering.course', 'group', 'lesson'])->withCount(['rosterEntries', 'attendances'])->orderBy('scheduled_start_at')->get()
             ->filter(function (ClassSession $session) use ($request) {
                 $localWeek = AcademicWeek::start($request->query('week'), $session->timezone);
@@ -115,7 +116,8 @@ class ScheduleController extends Controller
             $query->whereIn('id', $data['session_ids']);
         } else {
             $week = AcademicWeek::start($data['week']);
-            $query->where('scheduled_start_at', '>=', $week->subDays(2)->utc())->where('scheduled_start_at', '<', $week->addDays(9)->utc());
+            $query->where('scheduled_start_at', '>=', $week->subDays(2)->setTimezone(config('database.timezone')))
+                ->where('scheduled_start_at', '<', $week->addDays(9)->setTimezone(config('database.timezone')));
         }
         $sessions = $query->with('offering')->get();
         if (empty($data['session_ids'])) {

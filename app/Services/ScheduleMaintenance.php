@@ -44,7 +44,8 @@ class ScheduleMaintenance
             }
             $nextWeek = AcademicWeek::start($now, $offering->timezone)->addWeek();
             $hasPublished = $offering->classSessions()->where('status', 'published')
-                ->where('scheduled_start_at', '>=', $nextWeek->utc())->where('scheduled_start_at', '<', $nextWeek->addWeek()->utc())->exists();
+                ->where('scheduled_start_at', '>=', $nextWeek->setTimezone(config('database.timezone')))
+                ->where('scheduled_start_at', '<', $nextWeek->addWeek()->setTimezone(config('database.timezone')))->exists();
             if (! $hasPublished) {
                 Notices::sendOnce($offering->instructor, 'offering-'.$offering->id.'-unpublished-'.$nextWeek->toDateString(),
                     'notice_schedule_unpublished', ['course' => $offering->title, 'date' => $nextWeek->toDateString()],

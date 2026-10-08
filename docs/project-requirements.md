@@ -2,13 +2,13 @@
 
 **Recommended implementation:** one Laravel application with a mobile-first student portal and an instructor portal, using Blade, Livewire, and Tailwind CSS.
 
-**Version:** 1.7 · **Prepared / updated:** 8 October 2026 · **Status:** Sprints 1 and 2 implemented locally; Serv00 deployment profile prepared; Sprints 3–5 remain planned.
+**Version:** 1.8 · **Prepared / updated:** 8 October 2026 · **Status:** Sprints 1 and 2 implemented; production deployed on Serv00; Sprints 3–5 remain planned.
 
 **Confirmed clarification:** every student receives their own first **two attended classes per course** free. The third class they attend requires payment approval or an explicitly recorded instructor exception.
 
 **Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password and must supply a WhatsApp-linked phone number. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions. The application stores no course fee, and students see only offerings in which they are already enrolled through an instructor or invitation.
 
-This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. Serv00 shared hosting is selected and its deployment artifacts are prepared; an actual public deployment, automated Sprint 2 acceptance runs, and physical-device acceptance still require separate execution.
+This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. The application is deployed on Serv00; automated Sprint 2 acceptance runs, physical-device acceptance, backup rehearsal, and production capacity validation still require separate execution.
 
 **Project setup:** Docker Compose with Laravel Sail-compatible images is the implemented local environment, with container-based CI checks. Serv00 PHP shared hosting is the production profile. Section 3.7 defines both environments and their acceptance criteria.
 
@@ -453,7 +453,7 @@ Tailwind 4 documents minimum browser versions of Safari 16.4, Chrome 111, and Fi
 | --- | --- | --- | --- |
 | Main database | MySQL 8.4 LTS locally and MySQL 8.0 on Serv00, using InnoDB and `utf8mb4` | Relational constraints and transactions fit enrollments, receipts, attempts, and attendance. Unicode storage handles student names. | Run integration checks against MySQL 8.0 before public release; SQLite-only tests do not prove MySQL locking behavior. |
 | Cache, sessions, and queues | Redis in Docker; Laravel database drivers on Serv00 | Redis keeps the local multi-service setup representative of a managed deployment. Database drivers remove the need for a resident Redis process within Serv00's shared limits. | Serv00 queue work can be delayed by up to one cron interval; monitor the database and heartbeat tables. |
-| Private file storage | Laravel private local disk on Serv00, outside `public_html`; S3-compatible storage remains an upgrade path | Keeps receipts inaccessible by URL and avoids an extra storage service for the pilot. | Back up the database and private files together to an encrypted off-host location before payment proof launch. |
+| Private file storage | Laravel private local disk under `storage/app/private`; S3-compatible storage remains an upgrade path | Serv00 routes HTTP only through Laravel's `public/` directory, keeping receipts inaccessible by URL without an extra storage service for the pilot. | Back up the database and private files together to an encrypted off-host location before payment proof launch. |
 | Notifications | Laravel database notifications and queued jobs | Delivers localized in-app notices without requiring email addresses or verified phone numbers. | No external delivery provider is required; automated WhatsApp/SMS/email delivery is deferred. |
 | Scheduled work | Laravel Scheduler plus supervised workers where available; one locked minute cron with a bounded database worker on Serv00 | Handles reminders, timeout cleanup, reporting jobs, and retention tasks within each hosting model. | Serv00 has no permanent worker in this profile; synchronous requests still enforce all time/access rules. |
 
@@ -646,7 +646,7 @@ Reject invalid fields with actionable messages. Distinguish unauthenticated, una
 
 This fits the project because PHP extensions, database versions, queue workers, and asset tooling can be configured once and reproduced across development machines. It adds Docker resource usage and image-build time, so verify the team's operating systems and CPU architectures during Sprint 1. Compose describes services, networks, and volumes together. [Docker Compose application model](https://docs.docker.com/compose/intro/compose-application-model/).
 
-**Production baseline:** Serv00 hosts the application as a PHP website using PHP 8.5, MySQL 8.0, HTTPS, and a minute cron task. Node 24 compiles Vite assets during deployment; it is not an application server. The production web root points only to Laravel's `public/` directory. Sessions, cache locks, and queues use the existing MySQL tables, while receipt files remain under `storage/app/private`. The versioned environment template, deployment command, PHP settings, cron runner, and complete setup sequence are in [the Serv00 deployment runbook](deployment-serv00.md). [Serv00 PHP](https://docs.serv00.com/PHP/), [Serv00 Node.js](https://docs.serv00.com/Node.js/), [Serv00 Cron](https://docs.serv00.com/Cron/).
+**Production baseline:** Serv00 hosts the application as a PHP website using PHP 8.5, MySQL 8.0, HTTPS, and a minute cron task. Node compiles Vite assets during deployment; it is not an application server. Requests must route only through Laravel's `public/index.php`. Sessions, cache locks, and queues use the existing MySQL tables, while receipt files remain under `storage/app/private`. The environment template, active GitHub Actions deployment, PHP settings, cron runner, and recovery commands are in [the Serv00 operations runbook](deployment-serv00.md). [Serv00 PHP](https://docs.serv00.com/PHP/), [Serv00 Node.js](https://docs.serv00.com/Node.js/), [Serv00 Cron](https://docs.serv00.com/Cron/).
 
 #### Setup deliverables and acceptance criteria
 
@@ -700,9 +700,9 @@ For phone-based QR checks, document a reachable HTTPS development/staging URL an
 
 CI uses matching PHP extensions and MySQL behavior, with a dedicated test database, Compose project name, and file-storage location. Browser automation can run in a dedicated test container that reaches the app by service name. Commit lockfiles and install from them; a clean build must not reuse a developer's database or depend on uncommitted files.
 
-Laravel Sail remains the local development choice and is not copied to Serv00. The Serv00 deploy command installs locked Composer dependencies without development packages, builds locked frontend assets with Node 24, runs migrations once, caches Laravel configuration/routes/views, and exits maintenance mode only after success. Production `.env`, logs, source files, and private uploads remain outside `public_html`.
+Laravel Sail remains the local development choice and is not used on Serv00. The production workflow synchronizes source into the Serv00 application directory, preserves `.env` and mutable storage, installs locked Composer dependencies without development packages, builds locked frontend assets, runs migrations, and caches Laravel configuration/routes/views. Serv00 must route public requests only through Laravel's `public/` directory.
 
-Serv00 cron runs once per minute under `flock`: it invokes `schedule:run`, then a `queue:work database` process bounded by jobs, time, memory, and per-job timeout. This avoids a resident Redis or Supervisor process within shared-host limits. A failed deployment remains in maintenance mode for repair; retain a known-good Git revision and restore the paired database/private-file backup when rollback requires data recovery.
+Serv00 cron runs once per minute under `flock`: it invokes `schedule:run`, then a `queue:work database` process bounded by jobs, time, memory, and per-job timeout. This avoids a resident Redis or Supervisor process within shared-host limits. Retain a known-good Git revision and restore the paired database/private-file backup when rollback requires data recovery.
 
 ## 4. Quality, testing, and operations
 
@@ -810,7 +810,7 @@ Local development follows the Docker setup in Section 3.7. Production follows [t
 
 | Concern | Required operating behavior |
 | --- | --- |
-| Release | Run CI; back up MySQL and private files; let the gated GitHub Actions job deploy the exact successful `main` commit through `scripts/serv00-deploy.sh`; validate migrations, the public login page, and `system:check`; run smoke checks. |
+| Release | Run CI; back up MySQL and private files; let the production GitHub Actions workflow synchronize `main`, install dependencies, build assets, and migrate; then validate the public login page and `system:check`. |
 | Rollback | Keep the previous application release available. Prefer backward-compatible migrations; do not blindly reverse migrations that would destroy attendance, payments, or answers. |
 | Backups | Encrypt database/file backups and store a separate off-host copy. Serv00's provider backup alone does not satisfy the proposed 15-minute recovery-point target; automate paired MySQL/private-file backups or revise the target before launch. |
 | Monitoring | Alert on application errors, failed authentication spikes, queue delay, scheduler heartbeat, storage errors, failed backups, and abnormal check-in/test-save failures. |
@@ -858,7 +858,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 **Exit criteria:** an instructor can create an offering with two groups and enroll a registered student manually or by invitation; the student can sign in using either identifier and see only their enrolled offerings. No email/phone verification is requested and signed-out users cannot perform course actions. Both languages work on staging, with localized in-app notices and running workers/scheduler; browser support is documented.
 
-**Setup acceptance:** a second clean checkout starts successfully using Git and Docker without host PHP/Node/MySQL/Redis. Schema creation, instructor setup, asset build, tests, queue processing, and scheduler heartbeat work; routine stop/start and container recreation preserve a sample record and private file. Test resources are isolated. The Serv00 runtime decision and deployment artifacts are recorded; public deployment and rollback rehearsal remain ENV-05 acceptance work.
+**Setup acceptance:** a second clean checkout starts successfully using Git and Docker without host PHP/Node/MySQL/Redis. Schema creation, instructor setup, asset build, tests, queue processing, and scheduler heartbeat work; routine stop/start and container recreation preserve a sample record and private file. Test resources are isolated. Serv00 production is deployed; rollback and backup-restore rehearsal remain ENV-05 acceptance work.
 
 **Review demo:** instructor setup, student registration, instructor/invitation enrollment, then phone/code sign-in and enrolled-course access on a phone, switching between English and Arabic. No production teaching pilot yet.
 
@@ -954,4 +954,4 @@ If a proposed default changes, update the affected rule, acceptance scenario, an
 
 ### 5.10 Immediate review action
 
-**Next two-minute action:** open [the Serv00 deployment runbook](deployment-serv00.md) and collect the domain, Serv00 server number, MySQL database/user, and repository URL required by Section 1.
+**Next two-minute action:** run `php85 artisan system:check --wait=75` on Serv00 and record whether every production dependency passes.

@@ -12,12 +12,21 @@ class SystemCheck extends Command
 {
     protected $signature = 'system:check {--wait=0 : Bounded seconds to wait for the scheduler and queue}';
 
-    protected $description = 'Check database, cache, private storage, queue delivery, and scheduler heartbeat';
+    protected $description = 'Check timezones, database, cache, private storage, queue delivery, and scheduler heartbeat';
 
     public function handle(): int
     {
         try {
             DB::select('SELECT 1');
+            if (config('app.timezone') !== 'Africa/Cairo') {
+                throw new \RuntimeException('Application timezone must be Africa/Cairo.');
+            }
+            if (in_array(DB::getDriverName(), ['mysql', 'mariadb'], true)) {
+                $databaseTimezone = DB::selectOne('SELECT @@session.time_zone AS timezone')->timezone;
+                if ($databaseTimezone !== config('database.timezone')) {
+                    throw new \RuntimeException("Database session timezone is {$databaseTimezone}; expected ".config('database.timezone').'.');
+                }
+            }
             $cacheKey = 'health:'.bin2hex(random_bytes(8));
             Cache::put($cacheKey, 'ready', 60);
             if (Cache::get($cacheKey) !== 'ready') {
@@ -44,7 +53,7 @@ class SystemCheck extends Command
                 }
                 usleep(500000);
             } while (true);
-            $this->info('PASS: database, cache, private storage, queue, scheduler.');
+            $this->info('PASS: application/database timezones, database, cache, private storage, queue, scheduler.');
 
             return self::SUCCESS;
         } catch (\Throwable $e) {
