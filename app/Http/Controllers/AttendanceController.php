@@ -41,7 +41,9 @@ class AttendanceController extends Controller
     public function intent(Request $request, AttendanceIntent $intent)
     {
         $this->authorizeIntent($request, $intent);
-        if ($intent->consumed_at) return redirect()->route('attendance.result', $intent);
+        if ($intent->consumed_at) {
+            return redirect()->route('attendance.result', $intent);
+        }
         $intent->load(['session.offering', 'session.group', 'session.lesson']);
 
         return view('student.attendance-confirm', ['session' => $intent->session, 'token' => null, 'intent' => $intent]);

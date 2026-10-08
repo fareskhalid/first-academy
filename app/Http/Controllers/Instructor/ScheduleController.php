@@ -155,7 +155,9 @@ class ScheduleController extends Controller
         Gate::authorize('manage', $classSession->offering);
         $data = $request->validate(['action' => ['required', Rule::in(['start', 'complete', 'cancel', 'close_attendance'])], 'reason' => ['required', 'string', 'max:500']]);
         $manager->transition($request->user(), $classSession, $data['action'], $data['reason']);
-        if ($data['action'] === 'complete') app(AttendanceManager::class)->finalize($classSession);
+        if ($data['action'] === 'complete') {
+            app(AttendanceManager::class)->finalize($classSession);
+        }
 
         return back()->with('status_key', 'session_updated');
     }
@@ -166,7 +168,7 @@ class ScheduleController extends Controller
         $issued = $credentials->issue($classSession);
         $scanUrl = url()->secure(route('attendance.scan', ['token' => $issued['token']], false));
         $qrDataUri = (new Builder(
-            writer: new SvgWriter(), data: $scanUrl, encoding: new Encoding('UTF-8'),
+            writer: new SvgWriter, data: $scanUrl, encoding: new Encoding('UTF-8'),
             errorCorrectionLevel: ErrorCorrectionLevel::Medium, size: 480, margin: 18,
         ))->build()->getDataUri();
         $classSession->load(['offering.course', 'group', 'lesson']);

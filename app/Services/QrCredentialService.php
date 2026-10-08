@@ -34,7 +34,9 @@ class QrCredentialService
     public function fromToken(string $token): QrCredential
     {
         $credential = $this->validQuery()->where('token_hash', hash('sha256', $token))->first();
-        if (! $credential) throw ValidationException::withMessages(['attendance' => __('ui.qr_expired')]);
+        if (! $credential) {
+            throw ValidationException::withMessages(['attendance' => __('ui.qr_expired')]);
+        }
 
         return $credential;
     }
@@ -42,7 +44,9 @@ class QrCredentialService
     public function fromShortCode(string $code): QrCredential
     {
         $credential = $this->validQuery()->where('short_code_hash', hash('sha256', strtoupper(trim($code))))->first();
-        if (! $credential) throw ValidationException::withMessages(['code' => __('ui.qr_expired')]);
+        if (! $credential) {
+            throw ValidationException::withMessages(['code' => __('ui.qr_expired')]);
+        }
 
         return $credential;
     }

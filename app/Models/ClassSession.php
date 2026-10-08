@@ -22,13 +22,48 @@ class ClassSession extends Model
         ];
     }
 
-    public function offering() { return $this->belongsTo(CourseOffering::class, 'course_offering_id'); }
-    public function group() { return $this->belongsTo(Group::class); }
-    public function lesson() { return $this->belongsTo(Lesson::class); }
-    public function revisions() { return $this->hasMany(SessionScheduleRevision::class); }
-    public function rosterEntries() { return $this->hasMany(SessionRosterEntry::class); }
-    public function qrCredentials() { return $this->hasMany(QrCredential::class); }
-    public function intents() { return $this->hasMany(AttendanceIntent::class); }
-    public function attendances() { return $this->hasMany(Attendance::class); }
-    public function authorizations() { return $this->hasMany(AttendanceAuthorization::class); }
+    public function offering()
+    {
+        return $this->belongsTo(CourseOffering::class, 'course_offering_id');
+    }
+
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
+    public function lesson()
+    {
+        return $this->belongsTo(Lesson::class);
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(SessionScheduleRevision::class);
+    }
+
+    public function rosterEntries()
+    {
+        return $this->hasMany(SessionRosterEntry::class);
+    }
+
+    public function qrCredentials()
+    {
+        return $this->hasMany(QrCredential::class);
+    }
+
+    public function intents()
+    {
+        return $this->hasMany(AttendanceIntent::class);
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function authorizations()
+    {
+        return $this->hasMany(AttendanceAuthorization::class);
+    }
 }

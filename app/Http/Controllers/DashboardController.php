@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditEvent;
+use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
 use App\Models\Semester;
-use App\Models\ClassSession;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -26,8 +26,7 @@ class DashboardController extends Controller
 
         $todaySessions = ClassSession::whereHas('offering', fn ($q) => $q->where('instructor_id', $user->id))
             ->whereBetween('scheduled_start_at', [now()->subDay(), now()->addDay()])->with(['offering', 'group', 'lesson'])
-            ->orderBy('scheduled_start_at')->get()->filter(fn (ClassSession $session) =>
-                $session->scheduled_start_at->setTimezone($session->timezone)->isSameDay(now($session->timezone)));
+            ->orderBy('scheduled_start_at')->get()->filter(fn (ClassSession $session) => $session->scheduled_start_at->setTimezone($session->timezone)->isSameDay(now($session->timezone)));
 
         return view('instructor.dashboard', [
             'offerings' => CourseOffering::where('instructor_id', $user->id)->with('semester')->withCount('enrollments')->latest()->limit(6)->get(),

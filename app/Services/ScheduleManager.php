@@ -178,10 +178,18 @@ class ScheduleManager
             }
 
             $updates = [];
-            if ($action === 'start') $updates = ['status' => $next, 'started_at' => now()];
-            if ($action === 'complete') $updates = ['status' => $next, 'completed_at' => now()];
-            if ($action === 'cancel') $updates = ['status' => $next, 'cancelled_at' => now(), 'cancellation_reason' => $reason];
-            if ($action === 'close_attendance') $updates = ['attendance_closes_at' => now()];
+            if ($action === 'start') {
+                $updates = ['status' => $next, 'started_at' => now()];
+            }
+            if ($action === 'complete') {
+                $updates = ['status' => $next, 'completed_at' => now()];
+            }
+            if ($action === 'cancel') {
+                $updates = ['status' => $next, 'cancelled_at' => now(), 'cancellation_reason' => $reason];
+            }
+            if ($action === 'close_attendance') {
+                $updates = ['attendance_closes_at' => now()];
+            }
             $session->update($updates);
             if (in_array($action, ['cancel', 'close_attendance'], true)) {
                 app(QrCredentialService::class)->revoke($session);
@@ -210,7 +218,9 @@ class ScheduleManager
     {
         $studentIds = Enrollment::where('course_offering_id', $session->course_offering_id)->where('group_id', $session->group_id)
             ->where('status', 'enrolled')->pluck('student_id');
-        if ($studentIds->isEmpty()) return 0;
+        if ($studentIds->isEmpty()) {
+            return 0;
+        }
         $otherOfferings = ClassSession::where('id', '!=', $session->id)->where('status', '!=', 'cancelled')
             ->where('course_offering_id', '!=', $session->course_offering_id)
             ->where('scheduled_start_at', '<', $session->scheduled_end_at)->where('scheduled_end_at', '>', $session->scheduled_start_at)

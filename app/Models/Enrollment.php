@@ -41,8 +41,23 @@ class Enrollment extends Model
         return $this->hasMany(TransferRequest::class);
     }
 
-    public function attendances() { return $this->hasMany(Attendance::class); }
-    public function entitlements() { return $this->hasMany(CourseEntitlement::class); }
-    public function accessWaivers() { return $this->hasMany(AccessWaiver::class); }
-    public function rosterEntries() { return $this->hasMany(SessionRosterEntry::class); }
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function entitlements()
+    {
+        return $this->hasMany(CourseEntitlement::class);
+    }
+
+    public function accessWaivers()
+    {
+        return $this->hasMany(AccessWaiver::class);
+    }
+
+    public function rosterEntries()
+    {
+        return $this->hasMany(SessionRosterEntry::class);
+    }
 }

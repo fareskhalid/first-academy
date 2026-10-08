@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Instructor\EnrollmentController;
 use App\Http\Controllers\Instructor\OfferingController;

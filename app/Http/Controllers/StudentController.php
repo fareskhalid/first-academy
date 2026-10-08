@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Academics\EnrollmentManager;
+use App\Contracts\CourseAccess;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
 use App\Models\EnrollmentInvitation;
-use App\Contracts\CourseAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 

@@ -39,7 +39,9 @@ class ScheduleMaintenance
     {
         CourseOffering::with('instructor')->where('status', 'open')->get()->each(function (CourseOffering $offering) {
             $now = now($offering->timezone);
-            if ($now->dayOfWeek !== 4 || $now->hour < 18) return;
+            if ($now->dayOfWeek !== 4 || $now->hour < 18) {
+                return;
+            }
             $nextWeek = AcademicWeek::start($now, $offering->timezone)->addWeek();
             $hasPublished = $offering->classSessions()->where('status', 'published')
                 ->where('scheduled_start_at', '>=', $nextWeek->utc())->where('scheduled_start_at', '<', $nextWeek->addWeek()->utc())->exists();
