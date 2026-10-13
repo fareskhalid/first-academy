@@ -15,7 +15,7 @@
 @if($nextSession)
 <a class="student-course-next" href="#course-schedule">
     <span><x-icon name="calendar" :size="22" /></span>
-    <div><small><x-t k="next_class" /></small><strong>{{ $nextSession->lesson->display_title }}</strong><p>{{ $nextSession->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l، j F · H:i') }}</p></div>
+    <div><small><x-t k="next_class" /></small><strong>{{ $nextSession->lesson->display_title }}</strong><p>{{ $nextSession->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l، j F · h:i A') }}</p></div>
     <x-icon name="arrow" :size="19" />
 </a>
 @endif
@@ -38,7 +38,7 @@
     @forelse($sessions as $session)
     <article class="student-session-card {{ $session->has_ended ? 'is-ended' : '' }}">
         <div class="student-session-date"><strong>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('d') }}</strong><span>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</span></div>
-        <div><h3>{{ $session->lesson->display_title }}</h3><p><x-icon name="calendar" :size="14" />{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l') }} · <bdi>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('H:i') }}–{{ $session->scheduled_end_at->timezone($offering->timezone)->format('H:i') }}</bdi></p><small>{{ $session->group->display_name }}</small></div>
+        <div><h3>{{ $session->lesson->display_title }}</h3><p><x-icon name="calendar" :size="14" />{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l') }} · <bdi>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('h:i A') }}–{{ $session->scheduled_end_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('h:i A') }}</bdi></p><small>{{ $session->group->display_name }}</small></div>
         <x-status :value="$session->display_status" />
     </article>
     @empty<div class="student-empty-state"><span><x-icon name="calendar" :size="26" /></span><strong><x-t k="no_published_sessions" /></strong></div>@endforelse

@@ -100,6 +100,8 @@ async function initWeekCalendar() {
         slotMaxTime: '23:00:00',
         slotDuration: '00:30:00',
         slotLabelInterval: '01:00:00',
+        slotLabelFormat: { hour: 'numeric', minute: '2-digit', hour12: true },
+        eventTimeFormat: { hour: 'numeric', minute: '2-digit', hour12: true },
         nowIndicator: true,
         selectable: true,
         selectMirror: true,

@@ -209,7 +209,7 @@ class ScheduleManager
             ->where('status', 'enrolled')->get()->each(function (Enrollment $enrollment) use ($session, $key, $event) {
                 Notices::sendOnce($enrollment->student, 'session-'.$session->id.'-'.$event.'-'.$enrollment->student_id, $key, [
                     'course' => $session->offering->localized('title', $enrollment->student->locale),
-                    'date' => $session->scheduled_start_at->setTimezone($session->timezone)->format('Y-m-d H:i'),
+                    'date' => $session->scheduled_start_at->setTimezone($session->timezone)->locale($enrollment->student->locale)->translatedFormat('Y-m-d h:i A'),
                 ], route('student.courses.show', $session->course_offering_id, false));
             });
     }

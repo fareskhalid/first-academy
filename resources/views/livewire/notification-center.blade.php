@@ -29,7 +29,7 @@
             <div class="notification-item-icon"><x-icon :name="$noticeIcon" :size="21" />@if(!$notice->read_at)<span aria-hidden="true"></span>@endif</div>
             <div class="notification-item-copy">
                 <p><x-t :k="$key" :params="$notice->data['parameters'] ?? []" /></p>
-                <time datetime="{{ $notice->created_at->toIso8601String() }}" title="{{ $notice->created_at->timezone('Africa/Cairo')->locale(app()->getLocale())->translatedFormat('Y-m-d H:i') }}">{{ $notice->created_at->timezone('Africa/Cairo')->locale(app()->getLocale())->diffForHumans() }}</time>
+                <time datetime="{{ $notice->created_at->toIso8601String() }}" title="{{ $notice->created_at->timezone('Africa/Cairo')->locale(app()->getLocale())->translatedFormat('Y-m-d h:i A') }}">{{ $notice->created_at->timezone('Africa/Cairo')->locale(app()->getLocale())->diffForHumans() }}</time>
             </div>
             <div class="notification-item-actions">
                 @if(!empty($notice->data['url']))<a class="notification-open" href="{{ $notice->data['url'] }}"><x-t k="open_notification" /><x-icon name="arrow" :size="16" /></a>@endif

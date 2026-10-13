@@ -29,7 +29,7 @@ class ScheduleMaintenance
                 Enrollment::with('student')->where('course_offering_id', $session->course_offering_id)->where('group_id', $session->group_id)
                     ->where('status', 'enrolled')->get()->each(fn (Enrollment $enrollment) => Notices::sendOnce(
                         $enrollment->student, 'session-'.$session->id.'-upcoming-'.$enrollment->student_id, 'notice_session_upcoming',
-                        ['course' => $session->offering->localized('title', $enrollment->student->locale), 'date' => $session->scheduled_start_at->setTimezone($session->timezone)->format('Y-m-d H:i')],
+                        ['course' => $session->offering->localized('title', $enrollment->student->locale), 'date' => $session->scheduled_start_at->setTimezone($session->timezone)->locale($enrollment->student->locale)->translatedFormat('Y-m-d h:i A')],
                         route('student.courses.show', $session->course_offering_id, false),
                     ));
             });

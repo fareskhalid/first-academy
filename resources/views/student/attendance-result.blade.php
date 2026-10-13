@@ -9,7 +9,7 @@
     <div class="student-result-status"><x-status :value="$attendance->status" /></div>
 </section>
 <section class="student-result-details">
-    <div><span><x-icon name="calendar" :size="19" /></span><p><x-t k="recorded_at" /><strong><bdi>{{ $attendance->recorded_at->timezone($attendance->session->timezone)->format('Y-m-d · H:i:s') }}</bdi></strong></p></div>
+    <div><span><x-icon name="calendar" :size="19" /></span><p><x-t k="recorded_at" /><strong><bdi>{{ $attendance->recorded_at->timezone($attendance->session->timezone)->locale(app()->getLocale())->translatedFormat('Y-m-d · h:i:s A') }}</bdi></strong></p></div>
     <div><span><x-icon name="shield" :size="19" /></span><p><x-t k="remaining_free" /><strong>{{ $remaining_free }}</strong></p></div>
 </section>
 <a class="button student-result-action" href="{{ route('student.courses.show',$attendance->session->course_offering_id) }}"><x-t k="view_course" /><x-icon name="arrow" :size="18" /></a>

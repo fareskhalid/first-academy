@@ -39,7 +39,7 @@
         <div class="lecture-date" aria-hidden="true"><span>{{ $localStart->translatedFormat('M') }}</span><strong>{{ $localStart->format('d') }}</strong><small>{{ $localStart->translatedFormat('D') }}</small></div>
         <div class="lecture-copy">
             <div class="row between"><div><span class="lecture-course">{{ $session->offering->display_title }}</span><h2>{{ $session->lesson->display_title }}</h2></div><x-status :value="$session->display_status" /></div>
-            <div class="lecture-meta"><span><x-icon name="calendar" :size="17" /><bdi>{{ $localStart->format('H:i') }} — {{ $localEnd->format('H:i') }}</bdi></span><span><x-icon name="users" :size="17" />{{ $session->group->display_name }}</span></div>
+            <div class="lecture-meta"><span><x-icon name="calendar" :size="17" /><bdi>{{ $localStart->translatedFormat('h:i A') }} — {{ $localEnd->translatedFormat('h:i A') }}</bdi></span><span><x-icon name="users" :size="17" />{{ $session->group->display_name }}</span></div>
         </div>
         <div class="lecture-metrics"><span><strong>{{ $session->roster_entries_count }}</strong><x-t k="expected" /></span><span><strong>{{ $session->attendances_count }}</strong><x-t k="attendance_records" /></span></div>
         <div class="lecture-actions"><a class="button secondary" href="{{ route('instructor.sessions.show', $session) }}"><x-t k="manage_session" /></a>@if(!$session->has_ended && in_array($session->status, ['published','in_progress']))<a class="button" href="{{ route('instructor.sessions.qr', $session) }}"><x-icon name="qr" :size="18" /><x-t k="show_qr" /></a>@endif</div>

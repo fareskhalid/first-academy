@@ -17,7 +17,7 @@
 @if($nextSession)
 <a class="next-class-card" href="{{ route('student.courses.show',$nextSession->offering) }}">
     <span class="next-class-date"><strong>{{ $nextSession->scheduled_start_at->timezone($nextSession->timezone)->format('d') }}</strong><small>{{ $nextSession->scheduled_start_at->timezone($nextSession->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</small></span>
-    <span class="next-class-copy"><span class="eyebrow"><x-t k="next_class" /></span><strong>{{ $nextSession->offering->display_title }}</strong><span>{{ $nextSession->lesson->display_title }} · {{ $nextSession->group->display_name }}</span><time>{{ $nextSession->scheduled_start_at->timezone($nextSession->timezone)->locale(app()->getLocale())->translatedFormat('l · H:i') }}</time></span>
+    <span class="next-class-copy"><span class="eyebrow"><x-t k="next_class" /></span><strong>{{ $nextSession->offering->display_title }}</strong><span>{{ $nextSession->lesson->display_title }} · {{ $nextSession->group->display_name }}</span><time>{{ $nextSession->scheduled_start_at->timezone($nextSession->timezone)->locale(app()->getLocale())->translatedFormat('l · h:i A') }}</time></span>
     <span class="next-class-arrow"><x-icon name="arrow" :size="20" /></span>
 </a>
 @else
