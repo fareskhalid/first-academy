@@ -8,7 +8,12 @@
     @vite(['resources/css/app.css','resources/js/app.js'])
     @livewireStyles
 </head>
-<body x-data>
+<body x-data class="{{ auth()->check() ? 'role-'.auth()->user()->role : 'role-guest' }}">
+@auth
+@php($links = auth()->user()->isInstructor()
+    ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.students'=>['students','users'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','book'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
+    : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
+@endauth
 <a class="skip" href="#main"><x-t k="skip" /></a>
 <header class="topbar">
     <div class="topbar-inner">
@@ -19,15 +24,17 @@
             @auth <form method="POST" action="{{ route('logout') }}">@csrf<button class="secondary icon-button"><x-icon name="logout" :size="18" /><span class="tool-label"><x-t k="logout" /></span></button></form> @endauth
         </div>
     </div>
-    @auth
+    @auth @if(auth()->user()->isInstructor())
     <nav class="nav" aria-label="{{ __('ui.app_name') }}">
-        @php($links = auth()->user()->isInstructor()
-            ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','book'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
-            : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
         @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><x-icon :name="$icon" :size="19" /><x-t :k="$key" /></a>@endforeach
     </nav>
-    @endauth
+    @endif @endauth
 </header>
+@auth @if(!auth()->user()->isInstructor())
+<nav class="nav student-bottom-nav" aria-label="{{ __('ui.app_name') }}">
+    @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><x-icon :name="$icon" :size="19" /><x-t :k="$key" /></a>@endforeach
+</nav>
+@endif @endauth
 <main id="main" class="{{ $guest ? 'auth-shell' : 'shell' }}">
     @if($guest)<aside class="auth-intro"><div class="auth-brand-icon"><x-icon name="graduation" :size="34" /></div><div class="eyebrow"><x-t k="app_name" /></div><h1><x-t k="tagline" /></h1><p><x-t k="account_note" /></p><div class="learning-pills" aria-hidden="true"><span><x-icon name="book" :size="18" /></span><span><x-icon name="calendar" :size="18" /></span><span><x-icon name="shield" :size="18" /></span></div></aside><div class="auth-card-wrap">@endif
     <div class="alert error" x-cloak x-show="$store.i18n.error" x-text="$store.i18n.error" role="alert"></div>

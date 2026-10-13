@@ -5,7 +5,7 @@ Updated 8 October 2026.
 ## Finished
 
 - Docker installation: PHP 8.5, Node 24, MySQL 8.4, Redis 7.4, web, queue, scheduler, optional Vite, persistent private storage, isolated test databases, CI, and local HTTPS staging.
-- Identity: student self-registration, required Egyptian login phone and WhatsApp declaration, generated student code, phone/code login, password/profile changes, session invalidation, suspension/reactivation, instructor/operator recovery, and no guest course actions.
+- Identity: simplified student self-registration with name, Egyptian login phone, and password; the phone becomes the initial WhatsApp contact. Includes generated student code, phone/code login, password/profile changes, session invalidation, suspension/reactivation, instructor/operator recovery, and no guest course actions.
 - Academic setup: semesters, courses, offerings, optional groups with capacity, lesson identities, opening/completing/archiving, instructor/invitation enrollment, enrollment-scoped student course visibility, transfer requests, withdrawal/restoration, and group history.
 - Interface and operations: colorful mobile English/LTR and Arabic/RTL screens, locally bundled educational fonts, simple SVG icons, state-preserving locale switch, dashboards, course directory, localized queued notices, scoped audit log, health commands, and opt-in synthetic two-course/two-group data.
 - Automated acceptance: MySQL feature/Livewire tests, a simultaneous last-seat test, formatting checks, and Playwright journeys for mobile Chromium, mobile WebKit, and desktop Chromium.

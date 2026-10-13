@@ -39,7 +39,10 @@ class OfferingController extends Controller
         if ($offering) {
             Gate::authorize('manage', $offering);
         }
-        $rules = ['title' => ['required', 'string', 'max:150'], 'timezone' => ['required', 'timezone']];
+        $rules = [
+            'title' => ['required', 'string', 'max:150'],
+            'title_ar' => ['required', 'string', 'max:150'],
+        ];
         if (! $offering) {
             $rules += ['course_id' => ['required', 'integer', Rule::exists('courses', 'id')->where('instructor_id', $r->user()->id)->whereNull('archived_at')], 'semester_id' => ['required', 'integer', Rule::exists('semesters', 'id')->where('instructor_id', $r->user()->id)->whereNull('archived_at')], 'uses_groups' => ['sometimes', 'boolean']];
         }
@@ -64,7 +67,7 @@ class OfferingController extends Controller
                 );
                 $offering = CourseOffering::create($data + ['instructor_id' => $r->user()->id, 'uses_groups' => $r->boolean('uses_groups')]);
                 if (! $offering->uses_groups) {
-                    $offering->groups()->create(['name' => 'General']);
+                    $offering->groups()->create(['name' => 'General', 'name_ar' => 'عام']);
                 }
             }
             Audit::record($r->user(), 'offering_saved', $offering);
@@ -114,7 +117,11 @@ class OfferingController extends Controller
         if ($group) {
             abort_unless($group->course_offering_id === $offering->id, 404);
         }
-        $data = $r->validate(['name' => ['required', 'string', 'max:80', Rule::unique('groups')->where('course_offering_id', $offering->id)->ignore($group?->id)], 'capacity' => ['nullable', 'integer', 'min:1', 'max:10000']]);
+        $data = $r->validate([
+            'name' => ['required', 'string', 'max:80', Rule::unique('groups')->where('course_offering_id', $offering->id)->ignore($group?->id)],
+            'name_ar' => ['required', 'string', 'max:80'],
+            'capacity' => ['nullable', 'integer', 'min:1', 'max:10000'],
+        ]);
         DB::transaction(function () use ($offering, $group, $data, $r) {
             $offering = CourseOffering::lockForUpdate()->findOrFail($offering->id);
             if ($offering->status === 'archived') {
@@ -140,7 +147,11 @@ class OfferingController extends Controller
             abort_unless($lesson->course_offering_id === $offering->id, 404);
         }
         abort_if($offering->status === 'archived', 422);
-        $data = $r->validate(['title' => ['required', 'string', 'max:150'], 'position' => ['required', 'integer', 'min:1', 'max:1000', Rule::unique('lessons')->where('course_offering_id', $offering->id)->ignore($lesson?->id)]]);
+        $data = $r->validate([
+            'title' => ['required', 'string', 'max:150'],
+            'title_ar' => ['required', 'string', 'max:150'],
+            'position' => ['required', 'integer', 'min:1', 'max:1000', Rule::unique('lessons')->where('course_offering_id', $offering->id)->ignore($lesson?->id)],
+        ]);
         DB::transaction(function () use ($offering, $lesson, $data, $r) {
             $offering = CourseOffering::lockForUpdate()->findOrFail($offering->id);
             abort_if($offering->status === 'archived', 422);

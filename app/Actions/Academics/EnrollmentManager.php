@@ -73,7 +73,7 @@ class EnrollmentManager
             $enrollment = Enrollment::create(['student_id' => $student->id, 'course_offering_id' => $offering->id, 'group_id' => $group->id, 'status' => 'enrolled', 'joined_at' => now()]);
             $enrollment->memberships()->create(['group_id' => $group->id, 'starts_at' => now(), 'reason' => 'enrolled']);
             Audit::record($actor, 'enrolled', $enrollment, ['group_id' => $group->id], null, $offering->instructor_id);
-            Notices::send($student, 'notice_enrolled', ['course' => $offering->title], route('student.courses.show', $offering, false));
+            Notices::send($student, 'notice_enrolled', ['course' => $offering->localized('title', $student->locale)], route('student.courses.show', $offering, false));
 
             return $enrollment;
         }, 3);
@@ -120,7 +120,7 @@ class EnrollmentManager
             }
             $enrollment->transferRequests()->where('status', 'pending')->update(['status' => 'superseded', 'reviewed_at' => now()]);
             Audit::record($actor, $action, $enrollment, ['before' => $before, 'after' => ['status' => $enrollment->status, 'group_id' => $enrollment->group_id]], $reason, $offering->instructor_id);
-            Notices::send($enrollment->student, 'notice_enrollment_changed', ['course' => $offering->title], route('student.courses.show', $offering, false));
+            Notices::send($enrollment->student, 'notice_enrollment_changed', ['course' => $offering->localized('title', $enrollment->student->locale)], route('student.courses.show', $offering, false));
 
             return $enrollment;
         }, 3);
@@ -144,7 +144,7 @@ class EnrollmentManager
             }
             $request = $enrollment->transferRequests()->create(['group_id' => $groupId, 'reason' => $reason]);
             Audit::record($student, 'transfer_requested', $request, [], $reason, $offering->instructor_id);
-            Notices::send($offering->instructor, 'notice_transfer', ['name' => $student->name, 'course' => $offering->title], route('instructor.offerings.show', $offering, false));
+            Notices::send($offering->instructor, 'notice_transfer', ['name' => $student->name, 'course' => $offering->localized('title', $offering->instructor->locale)], route('instructor.offerings.show', $offering, false));
         });
     }
 }

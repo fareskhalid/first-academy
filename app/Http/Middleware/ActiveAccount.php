@@ -14,6 +14,9 @@ class ActiveAccount
         if (! $user) {
             return $request->expectsJson() ? response()->json(['message' => __('ui.login_required')], 401) : redirect()->guest(route('login'));
         }
+        if ($request->session()->missing('auth_version') && Auth::viaRemember()) {
+            $request->session()->put('auth_version', $user->session_version);
+        }
         if ($user->status !== 'active' || $request->session()->get('auth_version') !== $user->session_version || ($user->must_change_password && $user->temporary_password_expires_at?->isPast())) {
             Auth::logout();
             $request->session()->invalidate();

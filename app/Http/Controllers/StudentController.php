@@ -7,6 +7,9 @@ use App\Contracts\CourseAccess;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
 use App\Models\EnrollmentInvitation;
+use App\Models\User;
+use App\Rules\PhoneNumber;
+use App\Support\Phone;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
@@ -47,23 +50,41 @@ class StudentController extends Controller
         return back()->with('status_key', 'request_sent');
     }
 
-    private function invitation(string $token): EnrollmentInvitation
+    private function invitation(string $token, ?User $student = null): EnrollmentInvitation
     {
-        abort_if(auth()->user()->isInstructor(), 403);
+        abort_if($student?->isInstructor(), 403);
 
-        return EnrollmentInvitation::with(['offering', 'group'])->where('token_hash', hash('sha256', $token))->whereNull('revoked_at')->where('expires_at', '>', now())->where(fn ($q) => $q->whereNull('student_id')->orWhere('student_id', auth()->id()))->firstOrFail();
+        return EnrollmentInvitation::with(['offering', 'group'])->where('token_hash', hash('sha256', $token))->whereNull('revoked_at')->where('expires_at', '>', now())
+            ->where(fn ($query) => $query->whereNull('student_id')->when($student, fn ($query) => $query->orWhere('student_id', $student->id)))
+            ->firstOrFail();
     }
 
-    public function invitationShow(string $token)
+    public function invitationShow(Request $request, string $token)
     {
-        $invitation = $this->invitation($token);
+        $invitation = $this->invitation($token, $request->user());
 
         return view('student.invitation', compact('invitation', 'token'));
     }
 
+    public function invitationAccount(Request $request, string $token)
+    {
+        $this->invitation($token, $request->user());
+        if ($request->user()) {
+            return redirect()->route('invitations.show', $token);
+        }
+
+        $request->merge(['phone' => Phone::normalize((string) $request->input('phone'))]);
+        $data = $request->validate(['phone' => ['required', new PhoneNumber]]);
+        $request->session()->put('url.intended', route('invitations.show', $token));
+
+        return User::where('phone', $data['phone'])->exists()
+            ? redirect()->route('login', ['identifier' => $data['phone']])
+            : redirect()->route('register', ['phone' => $data['phone']]);
+    }
+
     public function invitationAccept(Request $r, string $token, EnrollmentManager $manager)
     {
-        $invite = $this->invitation($token);
+        $invite = $this->invitation($token, $r->user());
         $manager->enroll($r->user(), $invite->offering, $r->user(), $invite->group_id, $token);
 
         return redirect()->route('student.courses.show', $invite->offering)->with('status_key', 'enrollment_saved');

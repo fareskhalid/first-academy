@@ -22,6 +22,11 @@ class ClassSession extends Model
         ];
     }
 
+    public function getTimezoneAttribute(): string
+    {
+        return config('academic.timezone');
+    }
+
     public function offering()
     {
         return $this->belongsTo(CourseOffering::class, 'course_offering_id');

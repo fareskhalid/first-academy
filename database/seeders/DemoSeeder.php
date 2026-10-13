@@ -25,15 +25,15 @@ class DemoSeeder extends Seeder
             if (! $teacher->isInstructor()) {
                 throw new \RuntimeException('Demo phone conflicts with an existing student.');
             }
-            $semester = Semester::firstOrCreate(['instructor_id' => $teacher->id, 'name' => 'Demo semester'], ['starts_on' => now()->startOfMonth()->toDateString(), 'ends_on' => now()->addMonths(4)->endOfMonth()->toDateString()]);
-            foreach (['CS101' => 'Programming fundamentals', 'CS102' => 'Data structures'] as $code => $title) {
-                $course = Course::firstOrCreate(['instructor_id' => $teacher->id, 'code' => $code], ['name' => $title, 'description' => 'Synthetic course for exploring the system.']);
-                $offering = CourseOffering::firstOrCreate(['instructor_id' => $teacher->id, 'course_id' => $course->id, 'semester_id' => $semester->id], ['title' => $title, 'timezone' => 'Africa/Cairo', 'status' => 'open', 'uses_groups' => true]);
-                foreach (['Group A', 'Group B'] as $name) {
-                    $offering->groups()->firstOrCreate(['name' => $name], ['capacity' => 30]);
+            $semester = Semester::firstOrCreate(['instructor_id' => $teacher->id, 'name' => 'Demo semester'], ['name_ar' => 'فصل تجريبي', 'starts_on' => now()->startOfMonth()->toDateString(), 'ends_on' => now()->addMonths(4)->endOfMonth()->toDateString()]);
+            foreach (['CS101' => ['Programming fundamentals', 'أساسيات البرمجة'], 'CS102' => ['Data structures', 'هياكل البيانات']] as $code => [$title, $titleAr]) {
+                $course = Course::firstOrCreate(['instructor_id' => $teacher->id, 'code' => $code], ['name' => $title, 'name_ar' => $titleAr, 'description' => 'Synthetic course for exploring the system.', 'description_ar' => 'كورس تجريبي لاستكشاف النظام.']);
+                $offering = CourseOffering::firstOrCreate(['instructor_id' => $teacher->id, 'course_id' => $course->id, 'semester_id' => $semester->id], ['title' => $title, 'title_ar' => $titleAr, 'status' => 'open', 'uses_groups' => true]);
+                foreach ([['Group A', 'المجموعة أ'], ['Group B', 'المجموعة ب']] as [$name, $nameAr]) {
+                    $offering->groups()->firstOrCreate(['name' => $name], ['name_ar' => $nameAr, 'capacity' => 30]);
                 }
-                foreach (['Introduction', 'Core concepts', 'Practice'] as $i => $title) {
-                    $offering->lessons()->firstOrCreate(['position' => $i + 1], ['title' => $title]);
+                foreach ([['Introduction', 'مقدمة'], ['Core concepts', 'المفاهيم الأساسية'], ['Practice', 'تطبيق عملي']] as $i => [$lessonTitle, $lessonTitleAr]) {
+                    $offering->lessons()->firstOrCreate(['position' => $i + 1], ['title' => $lessonTitle, 'title_ar' => $lessonTitleAr]);
                 }
             }
         });

@@ -40,6 +40,12 @@
         @case('plus')
             <path d="M12 5v14M5 12h14" />
             @break
+        @case('search')
+            <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
+            @break
+        @case('qr')
+            <rect x="3" y="3" width="6" height="6" rx="1" /><rect x="15" y="3" width="6" height="6" rx="1" /><rect x="3" y="15" width="6" height="6" rx="1" /><path d="M15 15h2v2h-2zM19 15h2v4h-2M15 19h2v2h-2M19 21h2" />
+            @break
         @case('sparkles')
             <path d="m12 3 1.2 3.3L16.5 7.5l-3.3 1.2L12 12l-1.2-3.3-3.3-1.2 3.3-1.2ZM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8ZM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8Z" />
             @break

@@ -29,7 +29,7 @@ class ScheduleMaintenance
                 Enrollment::with('student')->where('course_offering_id', $session->course_offering_id)->where('group_id', $session->group_id)
                     ->where('status', 'enrolled')->get()->each(fn (Enrollment $enrollment) => Notices::sendOnce(
                         $enrollment->student, 'session-'.$session->id.'-upcoming-'.$enrollment->student_id, 'notice_session_upcoming',
-                        ['course' => $session->offering->title, 'date' => $session->scheduled_start_at->setTimezone($session->timezone)->format('Y-m-d H:i')],
+                        ['course' => $session->offering->localized('title', $enrollment->student->locale), 'date' => $session->scheduled_start_at->setTimezone($session->timezone)->format('Y-m-d H:i')],
                         route('student.courses.show', $session->course_offering_id, false),
                     ));
             });
@@ -48,7 +48,7 @@ class ScheduleMaintenance
                 ->where('scheduled_start_at', '<', $nextWeek->addWeek()->setTimezone(config('database.timezone')))->exists();
             if (! $hasPublished) {
                 Notices::sendOnce($offering->instructor, 'offering-'.$offering->id.'-unpublished-'.$nextWeek->toDateString(),
-                    'notice_schedule_unpublished', ['course' => $offering->title, 'date' => $nextWeek->toDateString()],
+                    'notice_schedule_unpublished', ['course' => $offering->localized('title', $offering->instructor->locale), 'date' => $nextWeek->toDateString()],
                     route('instructor.schedule', ['week' => $nextWeek->toDateString()], false));
             }
         });

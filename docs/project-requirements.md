@@ -6,7 +6,7 @@
 
 **Confirmed clarification:** every student receives their own first **two attended classes per course** free. The third class they attend requires payment approval or an explicitly recorded instructor exception.
 
-**Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password and must supply a WhatsApp-linked phone number. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions. The application stores no course fee, and students see only offerings in which they are already enrolled through an instructor or invitation.
+**Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password. Registration asks only for name, phone, password, and password confirmation; the login phone becomes the initial WhatsApp contact. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions. The application stores no course fee, and students see only offerings in which they are already enrolled through an instructor or invitation.
 
 This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. The application is deployed on Serv00; automated Sprint 2 acceptance runs, physical-device acceptance, backup rehearsal, and production capacity validation still require separate execution.
 
@@ -82,9 +82,9 @@ The lesson/session distinction prevents a student from receiving extra attendanc
 
 | ID | Confirmed update | Practical consequence |
 | --- | --- | --- |
-| BR-13 | The week starts Saturday, using the offering's configured timezone. Next week's schedule is due before Saturday 00:00. | Calendars, weekly reports, and reminders use Saturday–Friday regardless of UI language. |
+| BR-13 | The week starts Saturday in the fixed `Africa/Cairo` timezone. Next week's schedule is due before Saturday 00:00. | Calendars, weekly reports, and reminders use Saturday–Friday regardless of UI language. |
 | BR-14 | English and Arabic are both supported in the first release. | Both portals have translated UI and notifications, with left-to-right English and right-to-left Arabic layouts. |
-| BR-15 | Students sign in with an Egyptian phone number or student code plus password and provide a WhatsApp-linked phone number. Neither email nor phone ownership verification is required. | No verification links, SMS/WhatsApp verification codes, or verification-based access gates. |
+| BR-15 | Students sign in with an Egyptian phone number or student code plus password. Their login phone is stored as the initial WhatsApp contact. Neither email nor phone ownership verification is required. | No verification links, SMS/WhatsApp verification codes, or verification-based access gates. |
 | BR-16 | Only instructor and student accounts exist. Students may register a regular account, then sign in. No guest accounts, attendance, or course actions are allowed. | Login and regular registration are authentication entry points; every course action, including attendance-intent creation, requires an authenticated account. |
 
 ### 1.5 Proposed rules that make implementation precise
@@ -149,7 +149,7 @@ Every requirement below belongs to the first release unless explicitly deferred.
 | Payments | Inspect/review proofs for own offerings | Submit/view own proofs |
 | Tests and reports | Author, publish, grade, export own offerings | Take eligible tests; see own released results |
 
-There is no guest role or temporary guest account. Signed-out visitors can only use login/regular registration and their language selector, and read static authentication/recovery instructions. These entry points grant no course permissions. Protected page requests redirect to login; unauthenticated mutation requests return an authentication-required response without creating enrollment, attendance, or intent records. QR links reveal no class details before authentication.
+There is no guest role or temporary guest account. Signed-out visitors can use login/regular registration, the language selector, and a valid invitation landing page that checks their phone before routing them to login or registration. These entry points grant no course permissions. Protected page requests redirect to login; unauthenticated mutations cannot create enrollment, attendance, or intent records. QR links reveal no class details before authentication.
 
 Every action and file download must check ownership on the server. Hiding a button does not grant protection. A changed URL, form field, or Livewire component property must never expose another student's record or another instructor's offering.
 
@@ -157,8 +157,8 @@ Every action and file download must check ownership on the server. Hiding a butt
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
-| FR-ID-01 | Provide phone/student-code and password login with role-specific destinations. | A student can use either their normalized Egyptian login phone or their student code with the same password. Instructors use their Egyptian phone and password. Email login is disabled; no email/phone verification gate exists. |
-| FR-ID-02 | Allow regular student registration before sign-in. | Require full name, Egyptian login phone, WhatsApp-linked phone, password, and password confirmation; issue a unique student code. Optional university/university ID can be completed later. Registration creates a regular student account and then shows sign-in; it creates no attendance, attendance intent, or enrollment. |
+| FR-ID-01 | Provide phone/student-code and password login with role-specific destinations. | A student can use either their normalized Egyptian login phone or their student code with the same password. Instructors use their Egyptian phone and password. Successful login persists across browser restarts and idle periods until manual logout, while suspension, password reset, and account-security changes still revoke affected sessions. Email login is disabled; no email/phone verification gate exists. |
+| FR-ID-02 | Allow regular student registration before sign-in. | Require only full name, Egyptian login phone, password, and password confirmation; issue a unique student code and copy the login phone into the initial WhatsApp contact. University and university ID are not registration fields. Registration creates a regular student account and then shows sign-in; it creates no attendance, attendance intent, or enrollment. |
 | FR-ID-03 | Prevent duplicate accounts and preserve enrollment identity. | Enforce unique normalized login phone and unique student code; equivalent local/international phone forms cannot create another account. Existing credentials require login or instructor-assisted recovery, never an automatic merge. Public registration cannot assign instructor privileges. |
 | FR-ID-04 | Provide authenticated profile/password changes and instructor-assisted recovery. | Require current password for student password/login-phone changes; normalize and check uniqueness of the new phone without OTP verification. An authorized instructor can reset access after a documented account-ownership review, revoke old sessions, and require a new password on next login. No email/SMS/WhatsApp reset-verification flow. |
 | FR-ID-05 | Protect authentication and handle suspension. | Throttle login by normalized account identity and connection without letting phone/code aliases bypass limits; use generic login failures. Instructor provisioning, resets, suspension/reactivation, and identity changes are controlled and audited. Instructor authenticator-app 2FA remains a proposed security option, with no email/phone verification dependency. |
@@ -169,7 +169,7 @@ Accept Egyptian mobile numbers in local form (`01` followed by nine digits) or i
 
 Issue a student code at account creation, for example `STU-000123`; enforce uniqueness and case-insensitive lookup. It is an identifier, not a secret or a substitute for the password. Show it after registration and in the authenticated profile/instructor roster. Preserve it through phone changes, transfers, and semester changes. Do not provide a public code lookup or expose whether a phone/code exists through login errors.
 
-The student must supply a number linked to their WhatsApp account. Offer “Use my login phone” or a separate contact field, and require the student to declare that the number is on WhatsApp. Store `whatsapp_phone` separately, in international format with Egypt preselected, so updating the login phone does not silently change the contact. The contact can equal the login phone and need not be unique across students; it is never a login identifier or recovery credential. No WhatsApp lookup, verification message, or ownership-confirmation workflow is required. Storing this contact does not require a WhatsApp API integration or authorize automated messaging.
+At registration, copy the normalized login phone into `whatsapp_phone` without showing a separate WhatsApp field or declaration checkbox. The authenticated profile may later change the WhatsApp contact independently. The contact need not be unique across students and is never a login identifier or recovery credential. No WhatsApp lookup, verification message, or ownership-confirmation workflow is required.
 
 Email is not required at registration or for any attendance, payment, test, or recovery action. Do not create email/phone verification statuses or `identity_pending` attendance flags. University IDs are separate optional academic identifiers, not the system student code.
 
@@ -183,7 +183,7 @@ No bank credentials, national identity documents, or unrelated demographic data 
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
-| FR-AC-01 | Create and archive semesters, courses, and offerings. | Validate dates; store instructor, timezone, state, and group policy. Archive preserves attendance, payments, and grades. |
+| FR-AC-01 | Create and archive semesters, courses, and offerings with English and Arabic names and descriptions. | Validate dates; store instructor, state, group policy, and bilingual academic content. Archive preserves attendance, payments, and grades. |
 | FR-AC-02 | Manage optional groups and lesson identities. | Group names are unique inside an offering; optional capacity is enforced. Sessions of the same lesson across groups share a lesson ID. |
 | FR-AC-03 | Enroll existing student accounts manually or by invitation. | One enrollment per student/offering and one active group. Students see only offerings in which they already have an enrollment record. Invitations grant no permission before authentication; returning students reuse their enrollment. |
 | FR-AC-05 | Transfer, withdraw, and restore enrollments with history. | Group transfers affect future eligibility from their effective time, leave past records attached to the original group, and preserve course payment and free-class usage. |
@@ -196,8 +196,8 @@ Before classes exist, changing an offering's group structure is allowed. Once at
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
-| FR-SC-01 | Build a Saturday–Friday weekly schedule before Saturday starts. | Select offering, group, lesson, start/end, location, and attendance window. Publish before Saturday 00:00 in the offering timezone; drafts remain private. Both UI languages use Saturday as the first day. |
-| FR-SC-02 | Publish a week or selected sessions and notify affected students. | Publication is explicit; a repeat action creates no duplicate sessions or duplicate publication notices. Students see dates in the offering's timezone with a clear label. |
+| FR-SC-01 | Build a Saturday–Friday weekly schedule before Saturday starts. | Select offering, group, lesson, start/end, location, and attendance window. Publish before Saturday 00:00 in `Africa/Cairo`; drafts remain private. Both UI languages use Saturday as the first day. |
+| FR-SC-02 | Publish a week or selected sessions and notify affected students. | Publication is explicit; a repeat action creates no duplicate sessions or duplicate publication notices. Students see dates in `Africa/Cairo`. |
 | FR-SC-03 | Detect conflicts and invalid times. | Reject end-before-start and dates outside the semester. Block instructor/group overlaps by default; student overlaps across courses appear as warnings. An instructor conflict override requires a reason. |
 | FR-SC-04 | Reschedule, cancel, and copy a previous week's plan. | Copies create new drafts. Rescheduling preserves identity and history, revokes old QR credentials/intents, and notifies the current affected roster. Cancellation creates no absence or free-class consumption. |
 | FR-SC-05 | Remind the instructor about unpublished schedules and students about upcoming classes. | Proposed instructor reminder: Thursday 18:00 for the week beginning that coming Saturday. Proposed student reminder: 24 hours before a published class. Late publication sends an immediate notice, not a reminder in the past. |
@@ -371,7 +371,7 @@ Proposed grading defaults: one selected correct choice earns the question's full
 | FR-NT-04 | Notify test publication, upcoming availability, and released results. | Proposed opening reminder: one hour before; publish inside that hour sends one immediate notice. Cancelled tests do not send stale reminders. |
 | FR-NT-05 | Allow simple offering/group announcements. | Instructor creates plain text or sanitized limited formatting; recipients are scoped to that offering/group. No student contact details are revealed to other students. |
 
-In-app records are the durable source of notification history. Dispatch notification jobs after the related database transaction commits, retry failures with bounded backoff, and show delivery failures to the operator. Use an event/recipient/channel key to avoid duplicate deliveries. Store message keys and parameters so standard notices render in the user's current language. There is no required email address or automated WhatsApp/SMS channel in this release; the required WhatsApp field is contact information only. In-app reminders become visible when the user opens the system and do not promise an external alert while it is closed.
+In-app records are the durable source of notification history. Dispatch notification jobs after the related database transaction commits, retry failures with bounded backoff, and show delivery failures to the operator. Use an event/recipient/channel key to avoid duplicate deliveries. Store message keys and parameters so standard notices render in the user's current language. There is no required email address or automated WhatsApp/SMS channel in this release; the initial WhatsApp contact is copied from the login phone. In-app reminders become visible when the user opens the system and do not promise an external alert while it is closed.
 
 ### 2.9 Dashboards, reports, and audit
 
@@ -443,7 +443,7 @@ Laravel 13 supports PHP 8.3–8.5 and is listed for security fixes through 17 Ma
 
 The official Livewire starter kit uses Livewire 4, Tailwind, and Flux UI and supplies authentication through Fortify. Livewire bundles Alpine, so do not add a second Alpine instance. Build custom course screens from this starting point. [Laravel starter kits](https://laravel.com/docs/13.x/starter-kits), [Livewire installation](https://livewire.laravel.com/docs/4.x/installation).
 
-Adapt the starter kit to the confirmed account rules: replace email login with normalized Egyptian phone/student-code lookup, customize registration to collect WhatsApp contact and generate a student code, disable email-verification and email-reset routes/middleware, and route registration to sign-in. Keep CSRF/session protection and password hashing. Use Laravel language files under `lang/en` and `lang/ar`, persisted locale selection, and direction-aware Blade components for both portals.
+Adapt the starter kit to the confirmed account rules: replace email login with normalized Egyptian phone/student-code lookup, keep registration to name/phone/password fields, copy the phone into the initial WhatsApp contact, generate a student code, disable email-verification and email-reset routes/middleware, and route registration to sign-in. Keep CSRF/session protection and password hashing. Use Laravel language files under `lang/en` and `lang/ar`, persisted locale selection, and direction-aware Blade components for both portals.
 
 Tailwind 4 documents minimum browser versions of Safari 16.4, Chrome 111, and Firefox 128. These are a CSS compatibility floor, not proof that every application feature works on every such phone. Survey student devices and test them in Sprint 1. If older devices are common, choose a compatible CSS approach before implementation; Tailwind's migration guide identifies 3.4 as an option for older browsers. [Tailwind compatibility](https://tailwindcss.com/docs/compatibility), [Tailwind upgrade guide](https://tailwindcss.com/docs/upgrade-guide).
 
@@ -529,9 +529,9 @@ The following is the minimum conceptual schema. Normal timestamps, primary keys,
 | Entity | Essential data | Important constraints |
 | --- | --- | --- |
 | `users` | Role, full name, normalized Egyptian login phone, student code, password hash, account status, preferred locale (`en`/`ar`), password-change-required flag and temporary-password expiry | Unique login phone; unique student code required for students; registration assigns student role. No required email or email/phone verification fields. |
-| `student_profiles` | User, required `whatsapp_phone`, WhatsApp self-declaration time, university, optional institution student ID | One profile per student; contact is not a login/recovery identifier; university ID is separate from student code. |
+| `student_profiles` | User, `whatsapp_phone` initialized from the login phone, contact initialization time, optional university, optional institution student ID | One profile per student; contact is not a login/recovery identifier; university ID is separate from student code. |
 | `semesters` / `courses` | Owner, name/code; semester date range; archive state | Stable IDs; course code unique within its owner. |
-| `course_offerings` | Course, semester, instructor, timezone, state, and group policy | Offering is the scope for permissions, free attendance, payment approval, and tests. |
+| `course_offerings` | Course, semester, instructor, bilingual title, state, and group policy | Offering is the scope for permissions, free attendance, payment approval, and tests. |
 | `groups` / `lessons` | Offering, group name/capacity; lesson title/order | Unique group name within offering; same lesson can have sessions for several groups. |
 
 #### Enrollment, schedule, and attendance
@@ -622,7 +622,7 @@ The diagram shows the central relationships; it omits revision and delivery tabl
 
 Choose and document one consistent lock ordering before implementation to prevent deadlocks across attendance, approval, and transfer paths. A retry after a deadlock repeats the whole action and still respects uniqueness. Transactions hold database locks only; external file scanning and notification delivery happen outside them.
 
-Store event timestamps in UTC and each offering's IANA timezone, such as `Africa/Cairo` when the instructor selects it. Convert local schedule input to UTC with daylight-saving validation. Store both the effective UTC time and intended timezone context. Reject ambiguous/nonexistent local times until the instructor resolves them. Browser clocks supply display hints only.
+Use `Africa/Cairo` for application and database date handling. Convert local schedule input consistently and retain database timestamps using the configured database connection timezone. The timezone is fixed and is not editable by instructors or students. Browser clocks supply display hints only.
 
 Calculate a teaching week as the half-open local interval from Saturday 00:00 to the following Saturday 00:00, then convert each boundary to UTC. Reports, schedule copies, and publication reminders use this same rule; do not assume a fixed UTC offset or let switching English/Arabic change the week boundary.
 
@@ -632,7 +632,7 @@ Route names below are implementation examples, not a promise of a public API con
 
 | Surface | Illustrative routes | Required checks |
 | --- | --- | --- |
-| Authentication and account management | `GET/POST /login`, `GET/POST /register`; authenticated profile/password actions and instructor reset action | Only login/regular registration are public mutations; throttle, normalize phone/code, and enforce student role on registration. No verification or email-reset routes. |
+| Authentication and account management | `GET/POST /login`, `GET/POST /register`, invitation phone check; authenticated profile/password actions and instructor reset action | Public mutations are limited to login, regular registration, and throttled invitation account routing. Normalize phone/code and enforce student role on registration. No verification or email-reset routes. |
 | QR attendance | `GET /attend/{token}`, `POST /attendance-intents`, `POST /attendance-intents/{intent}/complete` | Authentication before data/intent access; token lifecycle; CSRF; enrollment; access; idempotency. Signed-out GET redirects, POST is rejected. |
 | Student portal | `/student`, `/student/courses/{enrollment}`, `/student/payment-proofs`, `/student/tests/{test}` | Student ownership and per-action entitlement; private downloads always authorized. |
 | Instructor portal | `/instructor`, `/instructor/offerings/{offering}/schedule`, `/attendance`, `/payments`, `/tests` beneath an owned offering | Instructor role plus ownership; reasoned changes; scoped queries. |
@@ -783,10 +783,10 @@ Destructive deletion, payment revocation, attempt invalidation, and archival act
 | ID | Given / when | Required result | Main requirements |
 | --- | --- | --- | --- |
 | AT-21 | A student signs in using local/international/Arabic-digit forms of their Egyptian phone, or their student code, with the same password. | All supported forms resolve to the same account; wrong passwords and non-Egyptian login numbers fail. Normalized duplicates cannot register; changing login alias does not bypass account throttling. | BR-15, FR-ID-01/03/05 |
-| AT-22 | A student registers with a login phone, WhatsApp contact, and password, and later needs recovery. | WhatsApp contact is required and may equal login phone; student code is issued once. No email, verification code, or ownership-verification flag is needed. Password recovery requires an authorized instructor action, not possession/knowledge of a phone or code. | FR-ID-02/04 |
-| AT-23 | A signed-out visitor directly requests course data, QR details, an attendance intent/completion, receipt upload, or a test action. | Pages redirect to login; mutations fail authentication without domain writes. Only login/regular registration entry points permit public mutations; no guest identities or intents are created. | BR-16, FR-AT-02, NFR-03 |
+| AT-22 | A student registers with a name, login phone, and password, and later needs recovery. | The login phone becomes the initial WhatsApp contact and a student code is issued once. No email, verification code, or ownership-verification flag is needed. Password recovery requires an authorized instructor action, not possession/knowledge of a phone or code. | FR-ID-02/04 |
+| AT-23 | A signed-out visitor directly requests course data, QR details, an attendance intent/completion, receipt upload, or a test action. | Pages redirect to login; mutations fail authentication without domain writes. Login, regular registration, and invitation account routing are the only public mutations; no guest identities or intents are created. | BR-16, FR-AT-02, NFR-03 |
 | AT-24 | A student/instructor switches English and Arabic during core flows, including a running test. | UI, notices, errors, and reports use the selected language/direction; phone/code text remains readable; form/answer state and deadline are preserved; Arabic CSV content survives export. | FR-LC-01–05, NFR-01 |
-| AT-25 | Scheduling/reporting crosses Friday 23:59 to Saturday 00:00 in the offering timezone, in either language. | The new teaching week starts Saturday; the publication deadline is Saturday 00:00 and the proposed reminder is Thursday 18:00. Reports group the same sessions in either language, including timezone-offset changes. | BR-13, FR-SC-01/05, FR-LC-04 |
+| AT-25 | Scheduling/reporting crosses Friday 23:59 to Saturday 00:00 in `Africa/Cairo`, in either language. | The new teaching week starts Saturday; the publication deadline is Saturday 00:00 and the proposed reminder is Thursday 18:00. Reports group the same sessions in either language, including daylight-saving changes. | BR-13, FR-SC-01/05, FR-LC-04 |
 
 These scenarios are a critical subset. Each functional requirement row also supplies acceptance criteria; implementation tests must cover those criteria, including permissions, notifications, reporting, exports, and accessibility.
 
@@ -851,10 +851,10 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 **Outcome:** working English/Arabic mobile registration, phone/code sign-in, and authenticated course enrollment on staging.
 
 1. Establish Laravel/Livewire with Docker Compose/Sail, a clean-checkout bootstrap guide/script, persistent MySQL/Redis/private storage, worker/scheduler/Vite services, and container-based CI: ENV-01–05 foundation. Prepare the Serv00 PHP 8.5/MySQL deployment profile, staging/secrets, and verify the phone-browser prototype and locked runtime versions.
-2. Implement regular registration with Egyptian login phone and WhatsApp contact, unique student codes, phone/code-password login, authenticated changes, instructor-assisted recovery, and role policies: FR-ID-01–05. Remove starter-kit verification/email-reset dependencies; no guest role or anonymous course actions.
+2. Implement regular registration with name, Egyptian login phone, and password; copy the phone as the initial WhatsApp contact; generate unique student codes; support phone/code-password login, authenticated changes, instructor-assisted recovery, and role policies: FR-ID-01–05. Remove starter-kit verification/email-reset dependencies; no guest role or anonymous course actions.
 3. Implement semesters, courses, offerings, lesson/group setup, and manual/invitation enrollment: FR-AC-01–03. Implement transfer/withdrawal foundations from FR-AC-05.
 4. Build English/LTR and Arabic/RTL layouts, locale selection, profile screens, and course cards: FR-LC-01–05/FR-RP-01–02 foundations. Establish audit recording and localized in-app notices: FR-RP-05/FR-NT-01 foundations.
-5. Test registration followed by sign-in, phone/code normalization/uniqueness, required WhatsApp contact, no-verification access, blocked anonymous actions, group capacity, and both layout directions: AT-21–24 as applicable. Seed a synthetic offering with two groups.
+5. Test simplified registration followed by sign-in, phone/code normalization/uniqueness, automatic initial WhatsApp contact, no-verification access, blocked anonymous actions, group capacity, and both layout directions: AT-21–24 as applicable. Seed a synthetic offering with two groups.
 
 **Exit criteria:** an instructor can create an offering with two groups and enroll a registered student manually or by invitation; the student can sign in using either identifier and see only their enrolled offerings. No email/phone verification is requested and signed-out users cannot perform course actions. Both languages work on staging, with localized in-app notices and running workers/scheduler; browser support is documented.
 
@@ -940,12 +940,12 @@ The pilot week must fit within the sprint through early feature completion; othe
 
 ### 5.9 Decisions to confirm during implementation planning
 
-The attendance interpretation, Saturday week start, English/Arabic support, phone/code-password login, required WhatsApp contact, absence of email/phone verification, and registration followed by authenticated-only course actions are confirmed. These five remaining decision groups cover proposed details; they do not reopen those requirements.
+The attendance interpretation, Saturday week start, English/Arabic support, phone/code-password login, login-phone initialization of the WhatsApp contact, absence of email/phone verification, and registration followed by authenticated-only course actions are confirmed. These five remaining decision groups cover proposed details; they do not reopen those requirements.
 
 | Decision | Default used in this document | Latest decision point |
 | --- | --- | --- |
 | Commercial/access policy | Payment approval and two free attendances reset for each semester offering. The system stores no course fee; the instructor reviews proofs and supplies payment methods and receiving instructions. Audited waivers are allowed. | Before Sprint 3 payment screens |
-| Academic operations | One active group; shared lesson identities across groups; configurable offering timezone; instructor/invitation enrollment only; students see only their enrolled offerings. Saturday week start is fixed. | Confirmed in Sprint 1 |
+| Academic operations | One active group; shared lesson identities across groups; fixed `Africa/Cairo` timezone; instructor/invitation enrollment only; students see only their enrolled offerings. Saturday week start is fixed. | Confirmed in Sprint 1 |
 | Account recovery, locale details, and devices | Review instructor-assisted recovery, optional instructor authenticator-app 2FA, generated student-code format, and English fallback when no supported browser preference exists. Both languages and no email/phone verification are fixed; sample student devices determine browser support. | Sprint 1 prototype |
 | Assessments | Standard tests follow trial/payment eligibility; optional free or paid-only tests; single-choice/true-false/text questions; one initial attempt; no code execution; instructor-controlled result release. | Before Sprint 4 |
 | Setup, operations, and retention | Docker Compose/Sail is the local setup; Serv00 PHP shared hosting is selected for production. Proposed 2,000-student envelope, 24-hour receipt review, and 24-month history remain subject to Serv00 load validation, off-host backup automation, budget, and retention approval. | Hosting selected in Sprint 1; capacity/backup/retention before Sprint 5 |

@@ -31,7 +31,8 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['identifier' => __('ui.login_failed')]);
         }
         RateLimiter::clear($key);
-        Auth::login($user, false);
+        Auth::guard()->setRememberDuration(config('session.lifetime'));
+        Auth::login($user, true);
         $request->session()->regenerate();
         $request->session()->put('auth_version', $user->session_version);
         if ($user->must_change_password) {
@@ -43,12 +44,10 @@ class AuthController extends Controller
 
     public function register(Request $request, RegisterStudent $register)
     {
-        $request->merge(['phone' => Phone::normalize((string) $request->input('phone')), 'whatsapp_phone' => Phone::normalize((string) ($request->boolean('whatsapp_same') ? $request->input('phone') : $request->input('whatsapp_phone')))]);
+        $request->merge(['phone' => Phone::normalize((string) $request->input('phone'))]);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:150'], 'phone' => ['required', new PhoneNumber, 'unique:users,phone'],
-            'whatsapp_phone' => ['required', new PhoneNumber(false)], 'whatsapp_declared' => ['accepted'],
             'password' => ['required', 'confirmed', Password::min(8), 'max:255'],
-            'university' => ['nullable', 'string', 'max:150'], 'university_student_id' => ['nullable', 'string', 'max:100'],
         ]);
         try {
             $user = $register->handle($data);

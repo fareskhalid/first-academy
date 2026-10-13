@@ -8,6 +8,7 @@ use App\Models\CourseOffering;
 use App\Models\EnrollmentInvitation;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -19,15 +20,15 @@ class AcademicTest extends TestCase
     {
         $teacher = User::factory()->instructor()->create();
         $this->signIn($teacher);
-        $this->post('/instructor/setup/semesters', ['name' => 'Autumn', 'starts_on' => '2026-09-01', 'ends_on' => '2027-01-31'])->assertRedirect();
-        $this->post('/instructor/setup/courses', ['name' => 'Programming', 'code' => 'CS101', 'description' => 'Course'])->assertRedirect();
-        $this->post('/instructor/offerings', ['title' => 'Programming Autumn', 'course_id' => 1, 'semester_id' => 1, 'timezone' => 'Africa/Cairo', 'uses_groups' => 1])->assertRedirect();
+        $this->post('/instructor/setup/semesters', ['name' => 'Autumn', 'name_ar' => 'الخريف', 'starts_on' => '2026-09-01', 'ends_on' => '2027-01-31'])->assertRedirect();
+        $this->post('/instructor/setup/courses', ['name' => 'Programming', 'name_ar' => 'البرمجة', 'code' => 'CS101', 'description' => 'Course', 'description_ar' => 'كورس'])->assertRedirect();
+        $this->post('/instructor/offerings', ['title' => 'Programming Autumn', 'title_ar' => 'برمجة الخريف', 'course_id' => 1, 'semester_id' => 1, 'uses_groups' => 1])->assertRedirect();
         $offering = CourseOffering::sole();
         $this->assertSame('draft', $offering->status);
-        foreach (['Group A', 'Group B'] as $name) {
-            $this->post('/instructor/offerings/'.$offering->id.'/groups', ['name' => $name, 'capacity' => 20])->assertRedirect();
+        foreach ([['Group A', 'المجموعة أ'], ['Group B', 'المجموعة ب']] as [$name, $nameAr]) {
+            $this->post('/instructor/offerings/'.$offering->id.'/groups', ['name' => $name, 'name_ar' => $nameAr, 'capacity' => 20])->assertRedirect();
         }
-        $this->post('/instructor/offerings/'.$offering->id.'/lessons', ['title' => 'Introduction', 'position' => 1])->assertRedirect();
+        $this->post('/instructor/offerings/'.$offering->id.'/lessons', ['title' => 'Introduction', 'title_ar' => 'مقدمة', 'position' => 1])->assertRedirect();
         $this->post('/instructor/offerings/'.$offering->id.'/status', ['status' => 'open', 'reason' => 'Ready'])->assertRedirect();
         $this->assertSame('open', $offering->fresh()->status);
         $this->assertDatabaseCount('groups', 2);
@@ -41,11 +42,11 @@ class AcademicTest extends TestCase
     {
         $existing = $this->offering();
         $this->signIn($existing->instructor);
-        $this->post('/instructor/offerings', ['title' => 'General offering', 'course_id' => $existing->course_id, 'semester_id' => $existing->semester_id, 'timezone' => 'Africa/Cairo'])->assertRedirect();
+        $this->post('/instructor/offerings', ['title' => 'General offering', 'title_ar' => 'كورس عام', 'course_id' => $existing->course_id, 'semester_id' => $existing->semester_id])->assertRedirect();
         $general = CourseOffering::latest('id')->first();
         $this->assertFalse($general->uses_groups);
         $this->assertSame('General', $general->groups()->sole()->name);
-        $this->post('/instructor/offerings/'.$general->id.'/groups', ['name' => 'Another'])->assertSessionHasErrors('name');
+        $this->post('/instructor/offerings/'.$general->id.'/groups', ['name' => 'Another', 'name_ar' => 'أخرى'])->assertSessionHasErrors('name');
     }
 
     public function test_instructor_enrolls_student_in_two_offerings_and_duplicate_requests_are_idempotent(): void
@@ -114,15 +115,29 @@ class AcademicTest extends TestCase
         $this->assertSame($payload['group_id'], $enrollment->fresh()->group_id);
     }
 
-    public function test_invitation_requires_sign_in_acceptance_and_current_validity(): void
+    public function test_invitation_detects_existing_and_new_accounts_before_acceptance(): void
     {
         $offering = $this->offering();
         $token = Str::random(64);
         $invite = EnrollmentInvitation::create(['course_offering_id' => $offering->id, 'group_id' => $offering->groups->first()->id, 'token_hash' => hash('sha256', $token), 'expires_at' => now()->addDay()]);
-        $this->get('/invitations/'.$token)->assertRedirect('/login');
+        $this->get('/invitations/'.$token)->assertOk()->assertSee('Algorithms');
         $this->assertDatabaseCount('enrollments', 0);
         $student = User::factory()->create();
-        $this->signIn($student)->get('/invitations/'.$token)->assertOk();
+        $this->post('/invitations/'.$token.'/account', ['phone' => $student->phone])
+            ->assertRedirect(route('login', ['identifier' => $student->phone]));
+        $this->assertSame(route('invitations.show', $token), session('url.intended'));
+        $newPhone = '+201155555555';
+        $this->post('/invitations/'.$token.'/account', ['phone' => $newPhone])
+            ->assertRedirect(route('register', ['phone' => $newPhone]));
+        $this->post('/register', [
+            'name' => 'Invited Student',
+            'phone' => $newPhone,
+            'password' => 'StudentPassword123!',
+            'password_confirmation' => 'StudentPassword123!',
+        ])->assertRedirect('/login');
+        $this->post('/login', ['identifier' => $newPhone, 'password' => 'StudentPassword123!'])
+            ->assertRedirect(route('invitations.show', $token));
+        $this->get('/invitations/'.$token)->assertOk();
         $this->assertDatabaseCount('enrollments', 0);
         $this->get('/student/courses/'.$offering->id)->assertForbidden();
         $this->post('/invitations/'.$token)->assertRedirect('/student/courses/'.$offering->id);
@@ -151,7 +166,7 @@ class AcademicTest extends TestCase
         app(EnrollmentManager::class)->enroll($offering->instructor, $offering, $student, $group->id);
         $second = User::factory()->create();
         app(EnrollmentManager::class)->enroll($offering->instructor, $offering, $second, $group->id);
-        $this->signIn($offering->instructor)->put('/instructor/offerings/'.$offering->id.'/groups/'.$group->id, ['name' => 'Group A', 'capacity' => 1])->assertSessionHasErrors('capacity');
+        $this->signIn($offering->instructor)->put('/instructor/offerings/'.$offering->id.'/groups/'.$group->id, ['name' => 'Group A', 'name_ar' => 'المجموعة أ', 'capacity' => 1])->assertSessionHasErrors('capacity');
         $this->post('/instructor/offerings/'.$offering->id.'/groups/'.$group->id.'/archive')->assertSessionHasErrors('archive');
     }
 
@@ -169,6 +184,51 @@ class AcademicTest extends TestCase
         $audit = AuditEvent::where('action', 'account_reset')->sole();
         $this->assertSame('Identity checked in person', $audit->reason);
         $this->assertSame([], $audit->changes);
+    }
+
+    public function test_student_management_lists_only_the_instructors_students_and_scopes_actions(): void
+    {
+        $offering = $this->offering();
+        $managed = User::factory()->create(['name' => 'Managed Student']);
+        app(EnrollmentManager::class)->enroll($offering->instructor, $offering, $managed, $offering->groups->first()->id);
+
+        $foreignOffering = $this->offering();
+        $foreign = User::factory()->create(['name' => 'Foreign Student']);
+        app(EnrollmentManager::class)->enroll($foreignOffering->instructor, $foreignOffering, $foreign, $foreignOffering->groups->first()->id);
+
+        $this->signIn($offering->instructor)
+            ->get('/instructor/students?search=Managed')
+            ->assertOk()
+            ->assertSee('Managed Student')
+            ->assertDontSee('Foreign Student');
+        $this->post('/instructor/students/'.$foreign->id.'/account', ['action' => 'suspend', 'reason' => 'Outside scope'])->assertForbidden();
+        $this->post('/instructor/students/'.$managed->id.'/account', ['action' => 'suspend', 'reason' => 'Account review'])->assertRedirect();
+        $this->assertSame('suspended', $managed->fresh()->status);
+    }
+
+    public function test_arabic_student_interface_uses_translated_academic_content(): void
+    {
+        $offering = $this->offering();
+        $offering->course->update(['description' => 'English description', 'description_ar' => 'وصف عربي']);
+        $student = User::factory()->create(['locale' => 'ar']);
+        app(EnrollmentManager::class)->enroll($offering->instructor, $offering, $student, $offering->groups->first()->id);
+
+        $this->signIn($student)
+            ->get('/student/courses/'.$offering->id)
+            ->assertOk()
+            ->assertSee('الخوارزميات')
+            ->assertSee('<p>وصف عربي</p>', false);
+    }
+
+    public function test_academic_timezone_is_always_cairo_without_database_columns(): void
+    {
+        $offering = $this->offering();
+
+        $this->assertSame('Africa/Cairo', config('app.timezone'));
+        $this->assertSame('Africa/Cairo', config('database.timezone'));
+        $this->assertSame('Africa/Cairo', $offering->timezone);
+        $this->assertFalse(Schema::hasColumn('course_offerings', 'timezone'));
+        $this->assertFalse(Schema::hasColumn('class_sessions', 'timezone'));
     }
 
     public function test_closed_offering_rejects_enrollment_and_completion_closes_membership(): void

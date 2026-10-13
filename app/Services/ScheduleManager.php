@@ -69,7 +69,7 @@ class ScheduleManager
             }
 
             $values = [
-                'group_id' => $group->id, 'lesson_id' => $lesson->id, 'timezone' => $offering->timezone,
+                'group_id' => $group->id, 'lesson_id' => $lesson->id,
                 'scheduled_start_at' => $start, 'scheduled_end_at' => $end,
                 'attendance_opens_at' => $opens, 'attendance_closes_at' => $closes, 'late_after_at' => $late,
                 'location' => $data['location'] ?? null,
@@ -142,7 +142,7 @@ class ScheduleManager
                 $targetStart = $source->scheduled_start_at->copy()->addWeek();
                 $values = [
                     'course_offering_id' => $offering->id, 'group_id' => $source->group_id, 'lesson_id' => $source->lesson_id,
-                    'timezone' => $source->timezone, 'scheduled_start_at' => $targetStart,
+                    'scheduled_start_at' => $targetStart,
                     'scheduled_end_at' => $source->scheduled_end_at->copy()->addWeek(), 'attendance_opens_at' => $source->attendance_opens_at->copy()->addWeek(),
                     'attendance_closes_at' => $source->attendance_closes_at->copy()->addWeek(), 'late_after_at' => $source->late_after_at->copy()->addWeek(),
                     'location' => $source->location, 'status' => 'draft',
@@ -208,7 +208,7 @@ class ScheduleManager
         Enrollment::with('student')->where('course_offering_id', $session->course_offering_id)->whereIn('group_id', array_unique(array_filter([$session->group_id, $previousGroupId])))
             ->where('status', 'enrolled')->get()->each(function (Enrollment $enrollment) use ($session, $key, $event) {
                 Notices::sendOnce($enrollment->student, 'session-'.$session->id.'-'.$event.'-'.$enrollment->student_id, $key, [
-                    'course' => $session->offering->title,
+                    'course' => $session->offering->localized('title', $enrollment->student->locale),
                     'date' => $session->scheduled_start_at->setTimezone($session->timezone)->format('Y-m-d H:i'),
                 ], route('student.courses.show', $session->course_offering_id, false));
             });

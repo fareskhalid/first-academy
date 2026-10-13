@@ -7,6 +7,7 @@ use App\Http\Controllers\Instructor\EnrollmentController;
 use App\Http\Controllers\Instructor\OfferingController;
 use App\Http\Controllers\Instructor\ScheduleController;
 use App\Http\Controllers\Instructor\SetupController;
+use App\Http\Controllers\Instructor\StudentController as InstructorStudentController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StudentController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:registration');
     Route::view('/recovery', 'auth.recovery')->name('recovery');
 });
+Route::get('/invitations/{token}', [StudentController::class, 'invitationShow'])->name('invitations.show');
+Route::post('/invitations/{token}/account', [StudentController::class, 'invitationAccount'])->middleware('throttle:registration')->name('invitations.account');
 Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -30,7 +33,6 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/student/courses', [StudentController::class, 'index'])->name('student.courses');
     Route::get('/student/courses/{offering}', [StudentController::class, 'show'])->name('student.courses.show');
     Route::post('/student/enrollments/{enrollment}/transfer', [StudentController::class, 'transfer'])->name('student.transfer');
-    Route::get('/invitations/{token}', [StudentController::class, 'invitationShow'])->name('invitations.show');
     Route::post('/invitations/{token}', [StudentController::class, 'invitationAccept'])->name('invitations.accept');
     Route::get('/attendance/scan/{token}', [AttendanceController::class, 'scan'])->name('attendance.scan');
     Route::post('/attendance/scan/{token}', [AttendanceController::class, 'start'])->name('attendance.start');
@@ -39,6 +41,8 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/attendance/intents/{intent}', [AttendanceController::class, 'record'])->name('attendance.record');
     Route::get('/attendance/intents/{intent}/result', [AttendanceController::class, 'result'])->name('attendance.result');
     Route::prefix('instructor')->name('instructor.')->middleware('instructor')->group(function () {
+        Route::get('/students', [InstructorStudentController::class, 'index'])->name('students');
+        Route::post('/students/{student}/account', [InstructorStudentController::class, 'account'])->name('students.account');
         Route::get('/setup', [SetupController::class, 'index'])->name('setup');
         Route::post('/setup/{kind}', [SetupController::class, 'save'])->whereIn('kind', ['semesters', 'courses'])->name('setup.store');
         Route::put('/setup/{kind}/{id}', [SetupController::class, 'save'])->whereIn('kind', ['semesters', 'courses'])->name('setup.update');

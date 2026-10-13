@@ -50,8 +50,6 @@ Required production settings include:
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://first-academy.fareskhalid.serv00.net
-APP_TIMEZONE=Africa/Cairo
-DB_TIMEZONE=Africa/Cairo
 SESSION_DRIVER=database
 CACHE_STORE=database
 QUEUE_CONNECTION=database
@@ -67,9 +65,9 @@ Replace every database placeholder. Generate `APP_KEY` once when it is blank, th
 
 Never regenerate a populated production key. Changing it invalidates encrypted cookies and any data encrypted with the previous key.
 
-`APP_TIMEZONE` controls Laravel and PHP date handling. `DB_TIMEZONE` sets every MySQL session opened by Laravel. Serv00's operating-system clock is provider-managed, so the application applies Cairo time without requiring root access.
+The application and every MySQL connection always use `Africa/Cairo`. Serv00's operating-system clock is provider-managed, so the application applies Cairo time without requiring root access or environment variables.
 
-After changing either timezone on the existing server, rebuild cached configuration:
+After deploying a timezone-related code change, rebuild cached configuration:
 
 ```bash
 /usr/local/bin/php85 artisan optimize:clear

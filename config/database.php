@@ -19,7 +19,7 @@ return [
 
     'default' => env('DB_CONNECTION', 'sqlite'),
 
-    'timezone' => env('DB_TIMEZONE', 'Africa/Cairo'),
+    'timezone' => 'Africa/Cairo',
 
     /*
     |--------------------------------------------------------------------------
@@ -57,7 +57,7 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
-            'timezone' => env('DB_TIMEZONE', 'Africa/Cairo'),
+            'timezone' => 'Africa/Cairo',
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,
@@ -78,7 +78,7 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => env('DB_CHARSET', 'utf8mb4'),
             'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
-            'timezone' => env('DB_TIMEZONE', 'Africa/Cairo'),
+            'timezone' => 'Africa/Cairo',
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,

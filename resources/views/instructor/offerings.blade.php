@@ -1,11 +1,10 @@
 <x-layout title="offerings"><div class="hero"><div><h1><x-t k="offerings" /></h1><p><x-t k="overview_hint" /></p></div></div>
-<div class="grid two"><section><h2 class="section-heading"><span class="heading-icon"><x-icon name="book" :size="20" /></span><x-t k="offerings" /></h2><div class="stack">@forelse($offerings as $offering)<article class="card course-card"><div class="row between"><span class="muted">{{ $offering->semester->name }}</span><x-status :value="$offering->status" /></div><h3>{{ $offering->title }}</h3><p class="muted">{{ $offering->course->code }} · {{ $offering->enrollments_count }} <x-t k="students" /></p><a class="button secondary" href="{{ route('instructor.offerings.show',$offering) }}"><x-t k="view_course" /><x-icon name="arrow" :size="17" /></a></article>@empty<div class="empty"><x-t k="no_courses" /></div>@endforelse</div></section>
+<div class="grid two"><section><h2 class="section-heading"><span class="heading-icon"><x-icon name="book" :size="20" /></span><x-t k="offerings" /></h2><div class="stack">@forelse($offerings as $offering)<article class="card course-card"><div class="row between"><span class="muted">{{ $offering->semester->display_name }}</span><x-status :value="$offering->status" /></div><h3>{{ $offering->display_title }}</h3><p class="muted">{{ $offering->course->code }} · {{ $offering->enrollments_count }} <x-t k="students" /></p><a class="button secondary" href="{{ route('instructor.offerings.show',$offering) }}"><x-t k="view_course" /><x-icon name="arrow" :size="17" /></a></article>@empty<div class="empty"><x-t k="no_courses" /></div>@endforelse</div></section>
 <section class="panel"><h2><x-t k="new_offering" /></h2>
 @if($courses->isEmpty() || $semesters->isEmpty())<p><x-t k="setup_hint" /></p><a class="button" href="{{ route('instructor.setup') }}"><x-t k="setup" /></a>
 @else<form method="POST" action="{{ route('instructor.offerings.store') }}" class="stack">@csrf
-<x-select name="semester_id" label="semester" required>@foreach($semesters as $item)<option value="{{ $item->id }}">{{ $item->name }}</option>@endforeach</x-select>
-<x-select name="course_id" label="course" required>@foreach($courses as $item)<option value="{{ $item->id }}">{{ $item->name }}</option>@endforeach</x-select>
-<x-field name="title" required maxlength="150" />
-<x-field name="timezone" value="Africa/Cairo" required dir="ltr" />
+<x-select name="semester_id" label="semester" required>@foreach($semesters as $item)<option value="{{ $item->id }}">{{ $item->display_name }}</option>@endforeach</x-select>
+<x-select name="course_id" label="course" required>@foreach($courses as $item)<option value="{{ $item->id }}">{{ $item->display_name }}</option>@endforeach</x-select>
+<div class="grid two"><x-field name="title" label="title_en" required maxlength="150" dir="ltr" /><x-field name="title_ar" label="title_ar" required maxlength="150" dir="rtl" /></div>
 <x-check name="uses_groups" /><button class="primary"><x-t k="create" /></button>
 </form>@endif</section></div></x-layout>

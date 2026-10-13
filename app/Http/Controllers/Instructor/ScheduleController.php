@@ -38,7 +38,7 @@ class ScheduleController extends Controller
             })->values();
         $calendarEvents = $sessions->map(fn (ClassSession $session) => [
             'id' => (string) $session->id,
-            'title' => $session->offering->title.' · '.$session->group->name.' · '.$session->lesson->title,
+            'title' => $session->offering->display_title.' · '.$session->group->display_name.' · '.$session->lesson->display_title,
             'start' => $session->scheduled_start_at->toIso8601String(),
             'end' => $session->scheduled_end_at->toIso8601String(),
             'editable' => in_array($session->status, ['draft', 'published'], true),

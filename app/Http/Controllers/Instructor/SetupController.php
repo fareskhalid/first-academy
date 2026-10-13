@@ -39,11 +39,18 @@ class SetupController extends Controller
         if ($id) {
             Gate::authorize('manage', $model);
         }
-        $rules = ['name' => ['required', 'string', 'max:150']];
+        $rules = [
+            'name' => ['required', 'string', 'max:150'],
+            'name_ar' => ['required', 'string', 'max:150'],
+        ];
         if ($kind === 'semesters') {
             $rules += ['starts_on' => ['required', 'date_format:Y-m-d'], 'ends_on' => ['required', 'date_format:Y-m-d', 'after_or_equal:starts_on']];
         } else {
-            $rules += ['code' => ['required', 'string', 'max:40', Rule::unique('courses')->where('instructor_id', $r->user()->id)->ignore($id)], 'description' => ['nullable', 'string', 'max:3000']];
+            $rules += [
+                'code' => ['required', 'string', 'max:40', Rule::unique('courses')->where('instructor_id', $r->user()->id)->ignore($id)],
+                'description' => ['nullable', 'string', 'max:3000'],
+                'description_ar' => ['nullable', 'string', 'max:3000'],
+            ];
         }
         $data = $r->validate($rules);
         DB::transaction(function () use ($model, $data, $r, $id) {

@@ -2,18 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasLocalizedAcademicFields;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class CourseOffering extends Model
 {
-    use HasFactory;
+    use HasFactory, HasLocalizedAcademicFields;
 
     protected $guarded = ['id'];
 
     protected function casts(): array
     {
         return ['uses_groups' => 'boolean'];
+    }
+
+    public function getTimezoneAttribute(): string
+    {
+        return config('academic.timezone');
     }
 
     public function course()

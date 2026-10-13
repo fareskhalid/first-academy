@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Instructor;
 
 use App\Actions\Academics\EnrollmentManager;
+use App\Actions\Identity\ManageStudentAccount;
 use App\Http\Controllers\Controller;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
@@ -82,29 +83,19 @@ class EnrollmentController extends Controller
                 $manager->change($r->user(), $transfer->enrollment, 'transfer', $data['reason'], $transfer->group_id);
             }
             $transfer->update(['status' => $data['decision'], 'reviewed_at' => now()]);
-            Notices::send($transfer->enrollment->student, 'notice_transfer_reviewed', ['course' => $transfer->enrollment->offering->title], route('student.courses.show', $transfer->enrollment->offering, false));
+            $student = $transfer->enrollment->student;
+            Notices::send($student, 'notice_transfer_reviewed', ['course' => $transfer->enrollment->offering->localized('title', $student->locale)], route('student.courses.show', $transfer->enrollment->offering, false));
             Audit::record($r->user(), 'transfer_reviewed', $transfer, ['decision' => $data['decision']], $data['reason'], $transfer->enrollment->offering->instructor_id);
         });
 
         return back()->with('status_key', 'saved');
     }
 
-    public function account(Request $r, Enrollment $enrollment)
+    public function account(Request $r, Enrollment $enrollment, ManageStudentAccount $manager)
     {
         Gate::authorize('manage', $enrollment);
         $data = $r->validate(['action' => ['required', Rule::in(['suspend', 'reactivate', 'reset'])], 'reason' => ['required', 'string', 'max:500']]);
-        $temporary = $data['action'] === 'reset' ? Str::password(16) : null;
-        DB::transaction(function () use ($r, $enrollment, $data, $temporary) {
-            $student = User::lockForUpdate()->findOrFail($enrollment->student_id);
-            $changes = ['session_version' => $student->session_version + 1, 'remember_token' => Str::random(60)];
-            if ($temporary) {
-                $changes += ['password' => $temporary, 'must_change_password' => true, 'temporary_password_expires_at' => now()->addHour()];
-            } else {
-                $changes += ['status' => $data['action'] === 'suspend' ? 'suspended' : 'active'];
-            }
-            $student->update($changes);
-            Audit::record($r->user(), 'account_'.$data['action'], $student, [], $data['reason'], $enrollment->offering->instructor_id);
-        });
+        $temporary = $manager->handle($r->user(), $enrollment->student, $data['action'], $data['reason']);
 
         return $temporary ? back()->with('temporary_password', $temporary) : back()->with('status_key', 'saved');
     }
