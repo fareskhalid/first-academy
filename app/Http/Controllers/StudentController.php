@@ -38,8 +38,13 @@ class StudentController extends Controller
         $attendedCount = $access->attendedCount($enrollment);
         $remainingFree = max(0, (int) config('academic.free_attended_lessons', 2) - $attendedCount);
         $accessSource = $access->source($enrollment, now());
+        $attendanceRecorded = $enrollment->attendances->whereIn('status', ['present', 'late'])->count();
+        $absenceCount = $enrollment->attendances->where('status', 'absent')->count();
+        $attendanceTotal = $attendanceRecorded + $absenceCount;
+        $attendanceRate = $attendanceTotal > 0 ? (int) round(($attendanceRecorded / $attendanceTotal) * 100) : null;
+        $nextSession = $sessions->first(fn ($session) => $session->scheduled_start_at->isFuture());
 
-        return view('student.course', compact('offering', 'enrollment', 'sessions', 'attendedCount', 'remainingFree', 'accessSource'));
+        return view('student.course', compact('offering', 'enrollment', 'sessions', 'attendedCount', 'remainingFree', 'accessSource', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
     }
 
     public function transfer(Request $r, Enrollment $enrollment, EnrollmentManager $manager)

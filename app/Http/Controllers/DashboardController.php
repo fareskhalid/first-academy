@@ -16,12 +16,38 @@ class DashboardController extends Controller
     {
         $user = $r->user();
         if (! $user->isInstructor()) {
-            $enrollments = $user->enrollments()->with(['offering.course', 'offering.semester', 'group'])->latest()->get();
-            $nextSession = ClassSession::whereIn('course_offering_id', $enrollments->where('status', 'enrolled')->pluck('course_offering_id'))
-                ->whereIn('group_id', $enrollments->where('status', 'enrolled')->pluck('group_id'))->where('status', 'published')
-                ->where('scheduled_start_at', '>', now())->with(['offering', 'lesson', 'group'])->orderBy('scheduled_start_at')->first();
+            $enrollments = $user->enrollments()
+                ->with(['offering.course', 'offering.semester', 'group'])
+                ->withCount([
+                    'attendances as attended_count' => fn ($query) => $query->whereIn('status', ['present', 'late']),
+                    'attendances as absent_count' => fn ($query) => $query->where('status', 'absent'),
+                ])->latest()->get();
+            $activeEnrollments = $enrollments->where('status', 'enrolled');
+            $futureSessions = ClassSession::query()
+                ->where('status', 'published')
+                ->where('scheduled_start_at', '>', now())
+                ->where(function ($query) use ($activeEnrollments) {
+                    if ($activeEnrollments->isEmpty()) {
+                        $query->whereRaw('1 = 0');
+                    }
 
-            return view('student.dashboard', compact('enrollments', 'nextSession'));
+                    foreach ($activeEnrollments as $enrollment) {
+                        $query->orWhere(fn ($pair) => $pair
+                            ->where('course_offering_id', $enrollment->course_offering_id)
+                            ->where('group_id', $enrollment->group_id));
+                    }
+                });
+            $nextSession = (clone $futureSessions)->with(['offering', 'lesson', 'group'])->orderBy('scheduled_start_at')->first();
+            $attendedCount = $enrollments->sum('attended_count');
+            $absenceCount = $enrollments->sum('absent_count');
+            $attendanceTotal = $attendedCount + $absenceCount;
+            $insights = [
+                'active_courses' => $activeEnrollments->count(),
+                'attendance_rate' => $attendanceTotal > 0 ? (int) round(($attendedCount / $attendanceTotal) * 100) : null,
+                'upcoming_classes' => $activeEnrollments->isEmpty() ? 0 : (clone $futureSessions)->count(),
+            ];
+
+            return view('student.dashboard', compact('enrollments', 'nextSession', 'insights'));
         }
 
         $todaySessions = ClassSession::whereHas('offering', fn ($q) => $q->where('instructor_id', $user->id))

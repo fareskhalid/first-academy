@@ -1,47 +1,60 @@
 <x-layout title="course">
 <div class="student-page">
-<header class="student-page-header course-header">
-    <a class="student-back" href="{{ route('dashboard') }}"><x-icon name="arrow" :size="19" /></a>
-    <div><p class="eyebrow">{{ $offering->semester->display_name }} · {{ $offering->course->code }}</p><h1>{{ $offering->display_title }}</h1><p>{{ $offering->instructor->name }}</p></div>
-    <x-status :value="$enrollment->status" />
+<header class="student-course-header">
+    <div class="student-course-header-top"><a class="student-back" href="{{ route('dashboard') }}" aria-label="{{ __('ui.back') }}"><x-icon name="arrow" :size="19" /></a><x-status :value="$enrollment->status" /></div>
+    <div class="student-course-header-copy"><span><x-icon name="book" :size="24" /></span><div><p>{{ $offering->semester->display_name }} · {{ $offering->course->code }}</p><h1>{{ $offering->display_title }}</h1><small>{{ $offering->instructor->name }}</small></div></div>
 </header>
 
-<div class="student-summary-grid">
-    <div><span><x-t k="group" /></span><strong>{{ $enrollment->group?->display_name }}</strong></div>
-    <div><span><x-t k="remaining_free" /></span><strong>{{ $remainingFree }}</strong></div>
-</div>
+<section class="student-course-insights" aria-label="{{ __('ui.course_overview') }}">
+    <article><span><x-t k="group" /></span><strong>{{ $enrollment->group?->display_name }}</strong></article>
+    <article><span><x-t k="attendance_rate" /></span><strong>{{ $attendanceRate === null ? '—' : $attendanceRate.'%' }}</strong></article>
+    <article><span><x-t k="classes_attended" /></span><strong>{{ $attendanceRecorded }}</strong></article>
+    <article><span><x-t k="absences" /></span><strong>{{ $absenceCount }}</strong></article>
+</section>
 
-<section class="student-action-card">
+@if($nextSession)
+<a class="student-course-next" href="#course-schedule">
+    <span><x-icon name="calendar" :size="22" /></span>
+    <div><small><x-t k="next_class" /></small><strong>{{ $nextSession->lesson->display_title }}</strong><p>{{ $nextSession->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l، j F · H:i') }}</p></div>
+    <x-icon name="arrow" :size="19" />
+</a>
+@endif
+
+<section class="student-action-card student-checkin-card">
     <div class="student-action-heading"><span><x-icon name="qr" :size="23" /></span><div><h2><x-t k="class_code" /></h2><p><x-t k="class_code_hint" /></p></div></div>
     <form method="POST" action="{{ route('attendance.code') }}" class="student-code-form" x-data="{ submitting: false }" @submit="submitting = true">@csrf
         <x-field name="code" label="short_code" required minlength="6" maxlength="6" dir="ltr" inputmode="numeric" autocomplete="off" />
-        <button class="primary" :disabled="submitting"><span x-show="!submitting"><x-t k="continue_checkin" /></span><span x-cloak x-show="submitting"><x-t k="please_wait" /></span></button>
+        <button class="primary" :disabled="submitting"><span x-show="!submitting"><x-icon name="check" :size="18" /><x-t k="continue_checkin" /></span><span x-cloak x-show="submitting"><x-t k="please_wait" /></span></button>
     </form>
 </section>
 
 @if($offering->course->display_description)
-<section class="student-info-card"><h2><x-t k="details" /></h2><p>{{ $offering->course->display_description }}</p><div class="access-summary"><x-status :value="$accessSource ? 'access_available' : 'payment_required'" /></div></section>
+<section class="student-info-card student-course-about"><div><h2><x-t k="about_course" /></h2><p>{{ $offering->course->display_description }}</p></div><x-status :value="$accessSource ? 'access_available' : 'payment_required'" /></section>
 @endif
 
-<section class="student-content-section">
-    <div class="student-section-heading"><h2><x-t k="published_schedule" /></h2></div>
+<section class="student-content-section" id="course-schedule">
+    <div class="student-section-heading"><div><p class="eyebrow"><x-t k="class_schedule" /></p><h2><x-t k="published_schedule" /></h2></div><span class="student-section-count">{{ $sessions->count() }}</span></div>
     <div class="student-session-list">
     @forelse($sessions as $session)
-    <article class="student-session-card"><div class="student-session-date"><strong>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('d') }}</strong><span>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</span></div><div><h3>{{ $session->lesson->display_title }}</h3><p>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l · H:i') }}</p></div><x-status :value="$session->status" /></article>
-    @empty<p class="muted"><x-t k="no_published_sessions" /></p>@endforelse
+    <article class="student-session-card {{ $session->has_ended ? 'is-ended' : '' }}">
+        <div class="student-session-date"><strong>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('d') }}</strong><span>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</span></div>
+        <div><h3>{{ $session->lesson->display_title }}</h3><p><x-icon name="calendar" :size="14" />{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l') }} · <bdi>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('H:i') }}–{{ $session->scheduled_end_at->timezone($offering->timezone)->format('H:i') }}</bdi></p><small>{{ $session->group->display_name }}</small></div>
+        <x-status :value="$session->display_status" />
+    </article>
+    @empty<div class="student-empty-state"><span><x-icon name="calendar" :size="26" /></span><strong><x-t k="no_published_sessions" /></strong></div>@endforelse
     </div>
 </section>
 
-<section class="student-info-card"><details><summary><x-t k="group_history" /></summary>
-@foreach($enrollment->memberships as $membership)<p class="muted">{{ $membership->group->display_name }} · {{ $membership->starts_at->timezone($offering->timezone)->format('Y-m-d') }} — @if($membership->ends_at){{ $membership->ends_at->timezone($offering->timezone)->format('Y-m-d') }}@else<x-t k="present" />@endif</p>@endforeach
+<section class="student-info-card student-group-card"><details><summary><span><x-icon name="users" :size="19" /><x-t k="group_history" /></span><x-icon name="arrow" :size="17" /></summary>
+<div class="student-group-history">@foreach($enrollment->memberships as $membership)<p>{{ $membership->group->display_name }} <small>{{ $membership->starts_at->timezone($offering->timezone)->format('Y-m-d') }} — @if($membership->ends_at){{ $membership->ends_at->timezone($offering->timezone)->format('Y-m-d') }}@else<x-t k="current" />@endif</small></p>@endforeach</div>
 @if($enrollment->status === 'enrolled' && $offering->status === 'open' && $offering->groups->whereNull('archived_at')->count() > 1)
-<details><summary><x-t k="request_transfer" /></summary><form method="POST" action="{{ route('student.transfer',$enrollment) }}" class="stack">@csrf<x-select name="group_id" label="group" required>@foreach($offering->groups->whereNull('archived_at')->where('id','!=',$enrollment->group_id) as $group)<option value="{{ $group->id }}">{{ $group->display_name }}</option>@endforeach</x-select><x-field name="reason" required maxlength="500" /><button class="primary"><x-t k="request_transfer" /></button></form></details>
+<details class="student-transfer"><summary><x-t k="request_transfer" /></summary><form method="POST" action="{{ route('student.transfer',$enrollment) }}" class="stack">@csrf<x-select name="group_id" label="group" required>@foreach($offering->groups->whereNull('archived_at')->where('id','!=',$enrollment->group_id) as $group)<option value="{{ $group->id }}">{{ $group->display_name }}</option>@endforeach</x-select><x-field name="reason" required maxlength="500" /><button class="primary"><x-t k="request_transfer" /></button></form></details>
 @endif
 @foreach($enrollment->transferRequests as $transfer)<p class="muted">{{ $transfer->group->display_name }} · <x-status :value="$transfer->status" /></p>@endforeach
 </details></section>
 
-<section class="student-content-section"><div class="student-section-heading"><h2><x-t k="attendance_history" /></h2></div>
-<div class="student-attendance-list">@forelse($enrollment->attendances as $attendance)<div><span><strong>{{ $attendance->lesson->display_title }}</strong><small>{{ $attendance->session->scheduled_start_at->timezone($offering->timezone)->format('Y-m-d') }}</small></span><x-status :value="$attendance->status" /></div>@empty<p class="muted"><x-t k="no_attendance" /></p>@endforelse</div>
+<section class="student-content-section"><div class="student-section-heading"><div><p class="eyebrow"><x-t k="your_progress" /></p><h2><x-t k="attendance_history" /></h2></div></div>
+<div class="student-attendance-list">@forelse($enrollment->attendances as $attendance)<div><span class="student-attendance-dot status-{{ $attendance->status }}"><x-icon name="check" :size="15" /></span><span><strong>{{ $attendance->lesson->display_title }}</strong><small>{{ $attendance->session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('j F Y') }}</small></span><x-status :value="$attendance->status" /></div>@empty<div class="student-empty-state"><span><x-icon name="clipboard" :size="26" /></span><strong><x-t k="no_attendance" /></strong></div>@endforelse</div>
 </section>
 </div>
 </x-layout>

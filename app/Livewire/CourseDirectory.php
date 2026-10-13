@@ -42,7 +42,12 @@ class CourseDirectory extends Component
                 'course',
                 'semester',
                 'instructor:id,name',
-                'enrollments' => fn ($q) => $q->where('student_id', auth()->id()),
+                'enrollments' => fn ($q) => $q->where('student_id', auth()->id())
+                    ->with('group')
+                    ->withCount([
+                        'attendances as attended_count' => fn ($attendance) => $attendance->whereIn('status', ['present', 'late']),
+                        'attendances as absent_count' => fn ($attendance) => $attendance->where('status', 'absent'),
+                    ]),
             ])
             ->orderBy(app()->getLocale() === 'ar' ? 'title_ar' : 'title')
             ->paginate(12);
