@@ -27,7 +27,7 @@
     <div class="student-section-heading"><h2><x-t k="published_schedule" /></h2></div>
     <div class="student-session-list">
     @forelse($sessions as $session)
-    <article class="student-session-card"><div class="student-session-date"><strong>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('d') }}</strong><span>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</span></div><div><h3>{{ $session->lesson->display_title }}</h3><p>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l · H:i') }}</p><span>{{ $session->location ?: __('ui.location_not_set') }}</span></div><x-status :value="$session->status" /></article>
+    <article class="student-session-card"><div class="student-session-date"><strong>{{ $session->scheduled_start_at->timezone($offering->timezone)->format('d') }}</strong><span>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</span></div><div><h3>{{ $session->lesson->display_title }}</h3><p>{{ $session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('l · H:i') }}</p></div><x-status :value="$session->status" /></article>
     @empty<p class="muted"><x-t k="no_published_sessions" /></p>@endforelse
     </div>
 </section>

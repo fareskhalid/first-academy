@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Actions\Academics\EnrollmentManager;
 use App\Models\AuditEvent;
+use App\Models\ClassSession;
 use App\Models\CourseOffering;
 use App\Models\EnrollmentInvitation;
 use App\Models\User;
@@ -204,6 +205,53 @@ class AcademicTest extends TestCase
         $this->post('/instructor/students/'.$foreign->id.'/account', ['action' => 'suspend', 'reason' => 'Outside scope'])->assertForbidden();
         $this->post('/instructor/students/'.$managed->id.'/account', ['action' => 'suspend', 'reason' => 'Account review'])->assertRedirect();
         $this->assertSame('suspended', $managed->fresh()->status);
+    }
+
+    public function test_instructor_manages_scoped_lectures_with_new_attendance_defaults(): void
+    {
+        $offering = $this->offering();
+        $lesson = $offering->lessons()->create(['title' => 'Own Lecture', 'title_ar' => 'محاضرتي', 'position' => 1]);
+
+        $this->signIn($offering->instructor)->post('/instructor/schedule/sessions', [
+            'course_offering_id' => $offering->id,
+            'group_id' => $offering->groups->first()->id,
+            'lesson_id' => $lesson->id,
+            'scheduled_start' => '2026-10-17T10:00',
+            'scheduled_end' => '2026-10-17T12:00',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $session = ClassSession::sole();
+        $this->assertSame('2026-10-17 10:00', $session->attendance_opens_at->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-17 11:00', $session->late_after_at->format('Y-m-d H:i'));
+        $this->assertSame('2026-10-17 12:00', $session->attendance_closes_at->format('Y-m-d H:i'));
+        $this->assertNull($session->location);
+
+        $foreignOffering = $this->offering();
+        $foreignLesson = $foreignOffering->lessons()->create(['title' => 'Foreign Lecture', 'title_ar' => 'محاضرة أخرى', 'position' => 1]);
+        $this->signIn($foreignOffering->instructor)->post('/instructor/schedule/sessions', [
+            'course_offering_id' => $foreignOffering->id,
+            'group_id' => $foreignOffering->groups->first()->id,
+            'lesson_id' => $foreignLesson->id,
+            'scheduled_start' => '2026-10-18T10:00',
+            'scheduled_end' => '2026-10-18T12:00',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->signIn($offering->instructor)
+            ->get('/instructor/lectures?search=Own')
+            ->assertOk()
+            ->assertSee('Own Lecture')
+            ->assertDontSee('Foreign Lecture');
+
+        $this->travelTo('2026-10-19 10:00:00');
+        $this->assertSame('ended', $session->display_status);
+        $this->get('/instructor/lectures?status=ended&search=Own')
+            ->assertOk()
+            ->assertSee('Own Lecture')
+            ->assertSee('Ended')
+            ->assertDontSee('Foreign Lecture');
+        $this->get('/instructor/schedule')
+            ->assertOk()
+            ->assertDontSee('name="location"', false);
     }
 
     public function test_arabic_student_interface_uses_translated_academic_content(): void

@@ -20,10 +20,19 @@ class NotificationCenter extends Component
         auth()->user()->notifications()->findOrFail($id)->markAsRead();
     }
 
+    public function markAllRead(): void
+    {
+        abort_unless(auth()->check() && auth()->user()->status === 'active', 403);
+        auth()->user()->unreadNotifications()->update(['read_at' => now()]);
+    }
+
     public function render()
     {
         abort_unless(auth()->check() && auth()->user()->status === 'active', 403);
 
-        return view('livewire.notification-center', ['notices' => auth()->user()->notifications()->paginate(15)]);
+        return view('livewire.notification-center', [
+            'notices' => auth()->user()->notifications()->paginate(15),
+            'unreadCount' => auth()->user()->unreadNotifications()->count(),
+        ]);
     }
 }

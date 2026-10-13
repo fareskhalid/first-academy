@@ -21,6 +21,69 @@ use Illuminate\Validation\Rule;
 
 class ScheduleController extends Controller
 {
+    public function lectures(Request $request)
+    {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(['draft', 'published', 'in_progress', 'ended', 'completed', 'cancelled'])],
+            'offering_id' => ['nullable', 'integer'],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date'],
+        ]);
+        $instructorId = $request->user()->id;
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? null;
+        $offeringId = isset($filters['offering_id']) ? (int) $filters['offering_id'] : null;
+        $from = isset($filters['from']) ? CarbonImmutable::parse($filters['from']) : null;
+        $to = isset($filters['to']) ? CarbonImmutable::parse($filters['to']) : null;
+
+        $query = ClassSession::query()
+            ->whereHas('offering', fn ($query) => $query->where('instructor_id', $instructorId))
+            ->with(['offering.course', 'group', 'lesson'])
+            ->withCount(['rosterEntries', 'attendances']);
+
+        if ($search !== '') {
+            $escaped = '%'.addcslashes($search, '%_\\').'%';
+            $query->where(function ($query) use ($escaped) {
+                $query->whereHas('offering', fn ($offering) => $offering
+                    ->where('title', 'like', $escaped)
+                    ->orWhere('title_ar', 'like', $escaped))
+                    ->orWhereHas('group', fn ($group) => $group
+                        ->where('name', 'like', $escaped)
+                        ->orWhere('name_ar', 'like', $escaped))
+                    ->orWhereHas('lesson', fn ($lesson) => $lesson
+                        ->where('title', 'like', $escaped)
+                        ->orWhere('title_ar', 'like', $escaped));
+            });
+        }
+        if ($status) {
+            if ($status === 'ended') {
+                $query->where('scheduled_end_at', '<=', now())
+                    ->whereNotIn('status', ['completed', 'cancelled']);
+            } else {
+                $query->where('status', $status);
+            }
+        }
+        if ($offeringId) {
+            $query->whereHas('offering', fn ($offering) => $offering
+                ->where('instructor_id', $instructorId)
+                ->whereKey($offeringId));
+        }
+        if ($from) {
+            $query->where('scheduled_start_at', '>=', $from->startOfDay());
+        }
+        if ($to) {
+            $query->where('scheduled_start_at', '<=', $to->endOfDay());
+        }
+
+        $sessions = $query->latest('scheduled_start_at')->paginate(20)->withQueryString();
+        $offerings = CourseOffering::where('instructor_id', $instructorId)
+            ->orderBy('title')
+            ->get();
+
+        return view('instructor.lectures', compact('sessions', 'offerings', 'search', 'status', 'offeringId', 'from', 'to'));
+    }
+
     public function index(Request $request)
     {
         $week = AcademicWeek::start($request->query('week'));
@@ -41,14 +104,14 @@ class ScheduleController extends Controller
             'title' => $session->offering->display_title.' · '.$session->group->display_name.' · '.$session->lesson->display_title,
             'start' => $session->scheduled_start_at->toIso8601String(),
             'end' => $session->scheduled_end_at->toIso8601String(),
-            'editable' => in_array($session->status, ['draft', 'published'], true),
-            'backgroundColor' => match ($session->status) {
+            'editable' => ! $session->has_ended && in_array($session->status, ['draft', 'published'], true),
+            'backgroundColor' => match ($session->display_status) {
                 'draft' => '#7b8499', 'published' => '#5946d2', 'in_progress' => '#1aa6a8',
-                'completed' => '#2b9a70', default => '#b64a42',
+                'completed' => '#2b9a70', 'ended' => '#515867', default => '#b64a42',
             },
             'borderColor' => 'transparent',
             'extendedProps' => [
-                'status' => $session->status,
+                'status' => $session->display_status,
                 'editUrl' => route('instructor.sessions.show', $session),
                 'moveUrl' => route('instructor.sessions.move', $session),
             ],
@@ -89,14 +152,15 @@ class ScheduleController extends Controller
         $oldStartTimestamp = $classSession->scheduled_start_at->getTimestamp();
         $shifted = fn ($value) => $newStart->addSeconds($value->getTimestamp() - $oldStartTimestamp);
         $newClose = $shifted($classSession->attendance_closes_at)->min($newEnd);
+        $newLate = $shifted($classSession->late_after_at)->min($newClose);
         $result = $manager->save($request->user(), $classSession->offering, [
             'course_offering_id' => $classSession->course_offering_id,
             'group_id' => $classSession->group_id, 'lesson_id' => $classSession->lesson_id,
             'scheduled_start' => $newStart->toIso8601String(), 'scheduled_end' => $newEnd->toIso8601String(),
             'attendance_opens' => $shifted($classSession->attendance_opens_at)->toIso8601String(),
             'attendance_closes' => $newClose->toIso8601String(),
-            'late_after' => $shifted($classSession->late_after_at)->toIso8601String(),
-            'location' => $classSession->location, 'reason' => $data['reason'],
+            'late_after' => $newLate->toIso8601String(),
+            'reason' => $data['reason'],
             'conflict_override_reason' => $data['conflict_override_reason'] ?? null,
         ], $classSession);
 
@@ -208,7 +272,7 @@ class ScheduleController extends Controller
             'group_id' => ['required', 'integer'], 'lesson_id' => ['required', 'integer'],
             'scheduled_start' => ['required', 'date'], 'scheduled_end' => ['required', 'date'],
             'attendance_opens' => ['nullable', 'date'], 'attendance_closes' => ['nullable', 'date'], 'late_after' => ['nullable', 'date'],
-            'location' => ['nullable', 'string', 'max:180'], 'conflict_override_reason' => ['nullable', 'string', 'max:500'],
+            'conflict_override_reason' => ['nullable', 'string', 'max:500'],
             'reason' => [$session ? 'required' : 'nullable', 'string', 'max:500'],
         ]) + ($session ? ['course_offering_id' => $session->course_offering_id] : []);
     }

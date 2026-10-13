@@ -64,6 +64,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/invitations/{invitation}/revoke', [EnrollmentController::class, 'revoke'])->name('invitations.revoke');
         Route::post('/transfers/{transfer}', [EnrollmentController::class, 'review'])->name('transfers.review');
         Route::get('/audit', [DashboardController::class, 'audit'])->name('audit');
+        Route::get('/lectures', [ScheduleController::class, 'lectures'])->name('lectures');
         Route::get('/schedule', [ScheduleController::class, 'index'])->name('schedule');
         Route::post('/schedule/sessions', [ScheduleController::class, 'store'])->name('sessions.store');
         Route::put('/schedule/sessions/{classSession}', [ScheduleController::class, 'update'])->name('sessions.update');

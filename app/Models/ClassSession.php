@@ -27,6 +27,20 @@ class ClassSession extends Model
         return config('academic.timezone');
     }
 
+    public function getHasEndedAttribute(): bool
+    {
+        return $this->scheduled_end_at?->lte(now()) ?? false;
+    }
+
+    public function getDisplayStatusAttribute(): string
+    {
+        if ($this->has_ended && ! in_array($this->status, ['completed', 'cancelled'], true)) {
+            return 'ended';
+        }
+
+        return $this->status;
+    }
+
     public function offering()
     {
         return $this->belongsTo(CourseOffering::class, 'course_offering_id');

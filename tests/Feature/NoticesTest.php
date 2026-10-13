@@ -29,6 +29,11 @@ class NoticesTest extends TestCase
         Livewire::actingAs($other)->test(NotificationCenter::class)->call('markRead', $event->id)->assertNotFound();
         Livewire::actingAs($user)->test(NotificationCenter::class)->assertSee($user->name)->call('markRead', $event->id);
         $this->assertNotNull($user->notifications()->sole()->read_at);
+
+        $secondEvent = NotificationEvent::create(['id' => (string) Str::uuid(), 'user_id' => $user->id, 'message_key' => 'notice_welcome', 'parameters' => ['name' => $user->name], 'url' => '/dashboard']);
+        (new DeliverNotice($secondEvent->id))->handle();
+        Livewire::actingAs($user)->test(NotificationCenter::class)->assertSee('1')->call('markAllRead');
+        $this->assertSame(0, $user->unreadNotifications()->count());
     }
 
     public function test_livewire_directory_is_authenticated_and_only_lists_students_enrollments(): void

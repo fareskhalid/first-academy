@@ -63,7 +63,7 @@ Text-based coding questions may be answered and manually graded in the first rel
 | Enrollment | One student's membership in one offering. It retains payment status and attendance history across group changes. |
 | Student code | A unique, system-issued account identifier used as an alternative login name. It is independent of university IDs and stays the same across courses and semesters. |
 | Lesson | A teaching unit within an offering. Group A and B may attend separate sessions of the same lesson. |
-| Class session | One scheduled meeting for one group, with its own date, location, and QR attendance window. |
+| Class session | One scheduled meeting for one group, with its own date and QR attendance window. |
 | Attended class | One valid present/late attendance credit for an enrollment and lesson. This is the unit used for the two free classes. |
 | Payment proof | A private uploaded receipt or invoice showing an external payment. The upload itself does not verify that payment occurred. |
 | Test | A published assessment with an audience, opening time, closing time, duration, and grading rules. |
@@ -196,7 +196,7 @@ Before classes exist, changing an offering's group structure is allowed. Once at
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
-| FR-SC-01 | Build a Saturday–Friday weekly schedule before Saturday starts. | Select offering, group, lesson, start/end, location, and attendance window. Publish before Saturday 00:00 in `Africa/Cairo`; drafts remain private. Both UI languages use Saturday as the first day. |
+| FR-SC-01 | Build a Saturday–Friday weekly schedule before Saturday starts. | Select offering, group, lesson, start/end, and attendance window. Publish before Saturday 00:00 in `Africa/Cairo`; drafts remain private. Both UI languages use Saturday as the first day. |
 | FR-SC-02 | Publish a week or selected sessions and notify affected students. | Publication is explicit; a repeat action creates no duplicate sessions or duplicate publication notices. Students see dates in `Africa/Cairo`. |
 | FR-SC-03 | Detect conflicts and invalid times. | Reject end-before-start and dates outside the semester. Block instructor/group overlaps by default; student overlaps across courses appear as warnings. An instructor conflict override requires a reason. |
 | FR-SC-04 | Reschedule, cancel, and copy a previous week's plan. | Copies create new drafts. Rescheduling preserves identity and history, revokes old QR credentials/intents, and notifies the current affected roster. Cancellation creates no absence or free-class consumption. |
@@ -211,7 +211,7 @@ draft -> published -> in_progress -> completed
 draft/published -> cancelled
 ```
 
-The attendance window is independent of the session lifecycle, allowing check-in shortly before class begins. Time-based boundaries apply even if a background job is delayed. A session is only marked delivered/completed by an instructor action; simply reaching its end time does not prove the instructor taught it. An abandoned session is flagged for resolution before absence finalization.
+The attendance window is independent of the session lifecycle. By default it opens at the lecture start, marks attendance late from one hour after the start, and closes at the lecture end. Time-based boundaries apply even if a background job is delayed. When its scheduled end passes, the interface marks the session `ended` and visually distinguishes it from upcoming sessions. This derived marker does not claim delivery: only an instructor action changes the durable lifecycle to `completed`. An abandoned session is flagged for resolution before absence finalization.
 
 ### 2.5 QR attendance
 
@@ -235,9 +235,9 @@ The attendance window is independent of the session lifecycle, allowing check-in
 
 | Setting | Initial value | Enforcement |
 | --- | --- | --- |
-| Window opens | 15 minutes before class | Instructor may adjust for the session before opening. |
-| Window closes | 30 minutes after class starts | Must not exceed class end; short classes use the earlier boundary. |
-| Late threshold | 10 minutes after class starts | Server-accepted intent time determines present/late. Exactly at the threshold is late. |
+| Window opens | At the lecture start | Instructor may adjust for the session before opening. |
+| Window closes | At the lecture end | The window never remains open after the scheduled lecture. |
+| Late threshold | 1 hour after lecture start | Server-accepted intent time determines present/late. Exactly at the threshold is late; lectures shorter than one hour use their end time. |
 | QR rotation / token validity | Rotate every 30 seconds; each token valid for 60 seconds | Short overlap permits scanning near a rotation. Explicit close/cancel/revoke overrides token validity. |
 | Authenticated attendance-intent lifetime | Up to 2 minutes, capped at normal window close + 2 minutes | User must already be signed in when the intent is created with a valid token/window. Deliberate closure revokes it immediately; no registration/login grace exists. |
 
@@ -539,7 +539,7 @@ The following is the minimum conceptual schema. Normal timestamps, primary keys,
 | Entity | Essential data | Important constraints |
 | --- | --- | --- |
 | `enrollments` / `group_memberships` | Student, offering, status, joined/withdrawn times; group effective start/end | Unique student/offering; non-overlapping group membership periods. Student course queries require this enrollment. |
-| `class_sessions` | Offering, group, lesson, scheduled start/end, location, publication/delivery state, attendance settings, QR revision | Group and lesson must belong to the same offering; prevent duplicate active group/lesson meetings unless deliberately modeled as separate lessons. |
+| `class_sessions` | Offering, group, lesson, scheduled start/end, publication/delivery state, attendance settings, QR revision | Group and lesson must belong to the same offering; prevent duplicate active group/lesson meetings unless deliberately modeled as separate lessons. |
 | `session_roster_entries` | Session, enrollment, eligibility source, group snapshot, expected/excused status | Unique session/enrollment; preserve historical expectations and explicitly link makeup attendance. |
 | `attendance_intents` / `qr_credentials` | Session, token hash or credential reference, issued/expiry/revocation time; authenticated student ID, browser binding, acceptance time, consumed time | Intent user is required at creation and cannot be reassigned; no anonymous intents. Never log raw tokens; each intent consumable once; QR is shared by the class. Expiring QR credentials may live in Redis. |
 | `attendances` / `attendance_revisions` | Enrollment, lesson, actual session, present/late/absent/excused/void status, observed/recorded time, method, access decision | Enrollment must belong to an existing student; no guest identity or verification-pending flag. One canonical record per enrollment/lesson with audited corrections. |

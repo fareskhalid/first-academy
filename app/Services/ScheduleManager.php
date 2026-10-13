@@ -47,13 +47,13 @@ class ScheduleManager
 
             $opens = isset($data['attendance_opens'])
                 ? CarbonImmutable::parse($data['attendance_opens'], $offering->timezone)->setTimezone(config('database.timezone'))
-                : $start->subMinutes((int) config('academic.attendance_opens_minutes_before', 15));
+                : $start;
             $closes = isset($data['attendance_closes'])
                 ? CarbonImmutable::parse($data['attendance_closes'], $offering->timezone)->setTimezone(config('database.timezone'))
-                : $start->addMinutes((int) config('academic.attendance_closes_minutes_after_start', 30))->min($end);
+                : $end;
             $late = isset($data['late_after'])
                 ? CarbonImmutable::parse($data['late_after'], $offering->timezone)->setTimezone(config('database.timezone'))
-                : $start->addMinutes((int) config('academic.late_minutes_after_start', 10));
+                : $start->addMinutes((int) config('academic.late_minutes_after_start', 60))->min($end);
 
             if (! $opens->lt($closes) || $closes->gt($end) || $late->lt($opens) || $late->gt($closes)) {
                 throw ValidationException::withMessages(['attendance_closes' => __('ui.invalid_attendance_window')]);
@@ -72,7 +72,7 @@ class ScheduleManager
                 'group_id' => $group->id, 'lesson_id' => $lesson->id,
                 'scheduled_start_at' => $start, 'scheduled_end_at' => $end,
                 'attendance_opens_at' => $opens, 'attendance_closes_at' => $closes, 'late_after_at' => $late,
-                'location' => $data['location'] ?? null,
+                'location' => $session?->location,
                 'conflict_override_reason' => $data['conflict_override_reason'] ?? null,
             ];
             $before = $session ? $this->snapshot($session) : null;
@@ -145,7 +145,7 @@ class ScheduleManager
                     'scheduled_start_at' => $targetStart,
                     'scheduled_end_at' => $source->scheduled_end_at->copy()->addWeek(), 'attendance_opens_at' => $source->attendance_opens_at->copy()->addWeek(),
                     'attendance_closes_at' => $source->attendance_closes_at->copy()->addWeek(), 'late_after_at' => $source->late_after_at->copy()->addWeek(),
-                    'location' => $source->location, 'status' => 'draft',
+                    'location' => null, 'status' => 'draft',
                 ];
                 $copy = ClassSession::firstOrCreate([
                     'group_id' => $source->group_id, 'lesson_id' => $source->lesson_id, 'scheduled_start_at' => $targetStart,

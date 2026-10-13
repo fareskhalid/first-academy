@@ -1,1 +1,3 @@
-<x-layout title="notifications"><div class="hero"><div><h1><x-t k="notifications" /></h1><p><x-t k="notification_hint" /></p></div></div><livewire:notification-center /></x-layout>
+<x-layout title="notifications">
+<div class="notification-page"><livewire:notification-center /></div>
+</x-layout>
