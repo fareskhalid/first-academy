@@ -37,10 +37,24 @@ class ScheduleController extends Controller
         $from = isset($filters['from']) ? CarbonImmutable::parse($filters['from']) : null;
         $to = isset($filters['to']) ? CarbonImmutable::parse($filters['to']) : null;
 
-        $query = ClassSession::query()
-            ->whereHas('offering', fn ($query) => $query->where('instructor_id', $instructorId))
+        $baseQuery = ClassSession::query()
+            ->whereHas('offering', fn ($query) => $query->where('instructor_id', $instructorId));
+        $localNow = CarbonImmutable::now(config('academic.timezone'));
+        $insights = [
+            'today' => (clone $baseQuery)->whereBetween('scheduled_start_at', [$localNow->startOfDay(), $localNow->endOfDay()])->count(),
+            'upcoming' => (clone $baseQuery)->where('scheduled_start_at', '>', now())->whereIn('status', ['draft', 'published'])->count(),
+            'live' => (clone $baseQuery)->where('status', 'in_progress')->where('scheduled_end_at', '>', now())->count(),
+            'needs_action' => (clone $baseQuery)->where('scheduled_end_at', '<=', now())->whereNotIn('status', ['completed', 'cancelled'])->count(),
+        ];
+
+        $query = (clone $baseQuery)
             ->with(['offering.course', 'group', 'lesson'])
-            ->withCount(['rosterEntries', 'attendances']);
+            ->withCount([
+                'rosterEntries',
+                'attendances',
+                'attendances as checked_in_count' => fn ($attendance) => $attendance->whereIn('status', ['present', 'late']),
+                'attendances as absent_count' => fn ($attendance) => $attendance->where('status', 'absent'),
+            ]);
 
         if ($search !== '') {
             $escaped = '%'.addcslashes($search, '%_\\').'%';
@@ -81,7 +95,7 @@ class ScheduleController extends Controller
             ->orderBy('title')
             ->get();
 
-        return view('instructor.lectures', compact('sessions', 'offerings', 'search', 'status', 'offeringId', 'from', 'to'));
+        return view('instructor.lectures', compact('sessions', 'offerings', 'insights', 'search', 'status', 'offeringId', 'from', 'to'));
     }
 
     public function index(Request $request)
