@@ -16,7 +16,6 @@ use App\Models\SessionRosterEntry;
 use App\Models\User;
 use App\Support\Audit;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceManager
@@ -52,8 +51,7 @@ class AttendanceManager
                     ->min($session->attendance_closes_at->copy()->addMinutes(2));
 
                 return AttendanceIntent::create([
-                    'id' => (string) Str::uuid(), 'class_session_id' => $session->id,
-                    'enrollment_id' => $enrollment->id, 'user_id' => $student->id,
+                    'class_session_id' => $session->id, 'enrollment_id' => $enrollment->id, 'user_id' => $student->id,
                     'qr_credential_id' => $credential->id, 'browser_session_hash' => $browserSessionHash,
                     'accepted_at' => $now, 'expires_at' => $expiresAt,
                 ]);

@@ -207,11 +207,12 @@ The system warns when a week begins without a published schedule, but permits la
 Session lifecycle:
 
 ```text
-draft -> published -> in_progress -> completed
+draft -> published --start time--> in_progress --end time--> ended
+in_progress/ended -> completed
 draft/published -> cancelled
 ```
 
-The attendance window is independent of the session lifecycle. By default it opens at the lecture start, marks attendance late from one hour after the start, and closes at the lecture end. Time-based boundaries apply even if a background job is delayed. When its scheduled end passes, the interface marks the session `ended` and visually distinguishes it from upcoming sessions. This derived marker does not claim delivery: only an instructor action changes the durable lifecycle to `completed`. An abandoned session is flagged for resolution before absence finalization.
+The attendance window is independent of the session lifecycle. By default it opens at the lecture start, marks attendance late from one hour after the start, and closes at the lecture end. Time-based boundaries apply even if a background job is delayed. A published session becomes `in_progress` automatically when its scheduled start arrives, then becomes `ended` when its scheduled end passes. These effective states are derived from server time, so they do not depend on a background job. The `ended` marker does not claim delivery: only an instructor action changes the durable lifecycle to `completed`. An abandoned session is flagged for resolution before absence finalization.
 
 ### 2.5 QR attendance
 
@@ -238,7 +239,7 @@ The attendance window is independent of the session lifecycle. By default it ope
 | Window opens | At the lecture start | Instructor may adjust for the session before opening. |
 | Window closes | At the lecture end | The window never remains open after the scheduled lecture. |
 | Late threshold | 1 hour after lecture start | Server-accepted intent time determines present/late. Exactly at the threshold is late; lectures shorter than one hour use their end time. |
-| QR rotation / token validity | Rotate every 30 seconds; each token valid for 60 seconds | Short overlap permits scanning near a rotation. Explicit close/cancel/revoke overrides token validity. |
+| QR rotation / token validity | Rotate every 30 seconds; each token valid for 10 minutes | The longer validity gives students time to finish authentication and check-in. Explicit close/cancel/revoke overrides token validity. |
 | Authenticated attendance-intent lifetime | Up to 2 minutes, capped at normal window close + 2 minutes | User must already be signed in when the intent is created with a valid token/window. Deliberate closure revokes it immediately; no registration/login grace exists. |
 
 These values are configurable instructor settings, not user-confirmed business rules. Expiration checks use `now < expires_at`; at the exact expiry time a token or intent is invalid. Registration/login never reserves attendance or extends QR validity. If authentication outlasts the token, the signed-in student scans the current QR or requests instructor assistance.
@@ -397,7 +398,7 @@ Payment reports summarize instructor-approved evidence of external payments; the
 | Instructor operations | Dashboard, course/group roster, weekly planner, QR display, attendance review | Responsive tables with focused detail screens; large QR projection mode; agenda alternative to calendar grids. |
 | Instructor assessment/billing | Receipt review, test builder, grading, reports/settings | Save draft state; explicit approval/publish actions; confirmation for destructive operations. |
 
-Student bottom navigation has four destinations: Home, Courses, Tests, and Profile. Course detail contains schedule, attendance, and payment. QR is an entry into the relevant class, not an obligation to navigate through several menus first.
+Student bottom navigation has five destinations: Home, Courses, My Lectures, Notifications, and Profile. Course detail contains schedule, attendance, and payment. QR is an entry into the relevant class, not an obligation to navigate through several menus first.
 
 Attendance result messages must distinguish “Recorded,” “Already recorded,” “Payment required,” “Payment awaiting review,” “Wrong group,” “QR expired,” and “Not confirmed — connection lost.” Every unsuccessful state names the action available to the student or instructor. Do not display internal stack traces or database errors.
 

@@ -29,6 +29,7 @@ class ScheduleController extends Controller
             'offering_id' => ['nullable', 'integer'],
             'from' => ['nullable', 'date'],
             'to' => ['nullable', 'date'],
+            'focus' => ['nullable', Rule::in(['today', 'upcoming', 'live', 'needs_action'])],
         ]);
         $instructorId = $request->user()->id;
         $search = trim((string) ($filters['search'] ?? ''));
@@ -36,16 +37,31 @@ class ScheduleController extends Controller
         $offeringId = isset($filters['offering_id']) ? (int) $filters['offering_id'] : null;
         $from = isset($filters['from']) ? CarbonImmutable::parse($filters['from']) : null;
         $to = isset($filters['to']) ? CarbonImmutable::parse($filters['to']) : null;
+        $focus = $filters['focus'] ?? null;
 
         $baseQuery = ClassSession::query()
             ->whereHas('offering', fn ($query) => $query->where('instructor_id', $instructorId));
+        $now = now();
         $localNow = CarbonImmutable::now(config('academic.timezone'));
         $insights = [
+            'total' => (clone $baseQuery)->count(),
             'today' => (clone $baseQuery)->whereBetween('scheduled_start_at', [$localNow->startOfDay(), $localNow->endOfDay()])->count(),
             'upcoming' => (clone $baseQuery)->where('scheduled_start_at', '>', now())->whereIn('status', ['draft', 'published'])->count(),
-            'live' => (clone $baseQuery)->where('status', 'in_progress')->where('scheduled_end_at', '>', now())->count(),
-            'needs_action' => (clone $baseQuery)->where('scheduled_end_at', '<=', now())->whereNotIn('status', ['completed', 'cancelled'])->count(),
+            'live' => (clone $baseQuery)->withDisplayStatus('in_progress', $now)->count(),
+            'needs_action' => (clone $baseQuery)->withDisplayStatus('ended', $now)->count(),
         ];
+
+        $featuredSession = (clone $baseQuery)
+            ->with(['offering.course', 'group', 'lesson'])
+            ->withDisplayStatus('in_progress', $now)
+            ->oldest('scheduled_start_at')
+            ->first();
+        $featuredSession ??= (clone $baseQuery)
+            ->with(['offering.course', 'group', 'lesson'])
+            ->where('scheduled_start_at', '>', $now)
+            ->whereIn('status', ['draft', 'published'])
+            ->oldest('scheduled_start_at')
+            ->first();
 
         $query = (clone $baseQuery)
             ->with(['offering.course', 'group', 'lesson'])
@@ -53,6 +69,7 @@ class ScheduleController extends Controller
                 'rosterEntries',
                 'attendances',
                 'attendances as checked_in_count' => fn ($attendance) => $attendance->whereIn('status', ['present', 'late']),
+                'attendances as late_count' => fn ($attendance) => $attendance->where('status', 'late'),
                 'attendances as absent_count' => fn ($attendance) => $attendance->where('status', 'absent'),
             ]);
 
@@ -71,12 +88,7 @@ class ScheduleController extends Controller
             });
         }
         if ($status) {
-            if ($status === 'ended') {
-                $query->where('scheduled_end_at', '<=', now())
-                    ->whereNotIn('status', ['completed', 'cancelled']);
-            } else {
-                $query->where('status', $status);
-            }
+            $query->withDisplayStatus($status, $now);
         }
         if ($offeringId) {
             $query->whereHas('offering', fn ($offering) => $offering
@@ -89,13 +101,22 @@ class ScheduleController extends Controller
         if ($to) {
             $query->where('scheduled_start_at', '<=', $to->endOfDay());
         }
+        if ($focus === 'today') {
+            $query->whereBetween('scheduled_start_at', [$localNow->startOfDay(), $localNow->endOfDay()]);
+        } elseif ($focus === 'upcoming') {
+            $query->where('scheduled_start_at', '>', now())->whereIn('status', ['draft', 'published']);
+        } elseif ($focus === 'live') {
+            $query->withDisplayStatus('in_progress', $now);
+        } elseif ($focus === 'needs_action') {
+            $query->withDisplayStatus('ended', $now);
+        }
 
         $sessions = $query->latest('scheduled_start_at')->paginate(20)->withQueryString();
         $offerings = CourseOffering::where('instructor_id', $instructorId)
             ->orderBy('title')
             ->get();
 
-        return view('instructor.lectures', compact('sessions', 'offerings', 'insights', 'search', 'status', 'offeringId', 'from', 'to'));
+        return view('instructor.lectures', compact('sessions', 'offerings', 'insights', 'featuredSession', 'search', 'status', 'offeringId', 'from', 'to', 'focus'));
     }
 
     public function index(Request $request)
@@ -118,7 +139,7 @@ class ScheduleController extends Controller
             'title' => $session->offering->display_title.' · '.$session->group->display_name.' · '.$session->lesson->display_title,
             'start' => $session->scheduled_start_at->toIso8601String(),
             'end' => $session->scheduled_end_at->toIso8601String(),
-            'editable' => ! $session->has_ended && in_array($session->status, ['draft', 'published'], true),
+            'editable' => in_array($session->display_status, ['draft', 'published'], true),
             'backgroundColor' => match ($session->display_status) {
                 'draft' => '#7b8499', 'published' => '#5946d2', 'in_progress' => '#1aa6a8',
                 'completed' => '#2b9a70', 'ended' => '#515867', default => '#b64a42',
@@ -131,7 +152,16 @@ class ScheduleController extends Controller
             ],
         ])->values();
 
-        return view('instructor.schedule', compact('week', 'offerings', 'sessions', 'calendarEvents'));
+        $weekInsights = [
+            'total' => $sessions->count(),
+            'draft' => $sessions->filter(fn (ClassSession $session) => $session->display_status === 'draft')->count(),
+            'published' => $sessions->filter(fn (ClassSession $session) => $session->display_status === 'published')->count(),
+            'needs_action' => $sessions->filter(fn (ClassSession $session) => $session->display_status === 'ended')->count(),
+        ];
+        $publishableDrafts = $sessions->filter(fn (ClassSession $session) => $session->status === 'draft' && ! $session->has_ended);
+        $isCurrentWeek = $week->equalTo(AcademicWeek::start());
+
+        return view('instructor.schedule', compact('week', 'offerings', 'sessions', 'calendarEvents', 'weekInsights', 'publishableDrafts', 'isCurrentWeek'));
     }
 
     public function store(Request $request, ScheduleManager $manager)
@@ -233,7 +263,7 @@ class ScheduleController extends Controller
     public function transition(Request $request, ClassSession $classSession, ScheduleManager $manager)
     {
         Gate::authorize('manage', $classSession->offering);
-        $data = $request->validate(['action' => ['required', Rule::in(['start', 'complete', 'cancel', 'close_attendance'])], 'reason' => ['required', 'string', 'max:500']]);
+        $data = $request->validate(['action' => ['required', Rule::in(['complete', 'cancel', 'close_attendance'])], 'reason' => ['required', 'string', 'max:500']]);
         $manager->transition($request->user(), $classSession, $data['action'], $data['reason']);
         if ($data['action'] === 'complete') {
             app(AttendanceManager::class)->finalize($classSession);

@@ -31,6 +31,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/locale', [ProfileController::class, 'locale'])->name('locale');
     Route::view('/notifications', 'notifications')->name('notifications');
     Route::get('/student/courses', [StudentController::class, 'index'])->name('student.courses');
+    Route::get('/student/lectures', [StudentController::class, 'lectures'])->name('student.lectures');
     Route::get('/student/courses/{offering}', [StudentController::class, 'show'])->name('student.courses.show');
     Route::post('/student/enrollments/{enrollment}/transfer', [StudentController::class, 'transfer'])->name('student.transfer');
     Route::post('/invitations/{token}', [StudentController::class, 'invitationAccept'])->name('invitations.accept');

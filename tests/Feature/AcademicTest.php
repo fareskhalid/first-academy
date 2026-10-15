@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Actions\Academics\EnrollmentManager;
+use App\Models\AttendanceIntent;
 use App\Models\AuditEvent;
 use App\Models\ClassSession;
 use App\Models\CourseOffering;
 use App\Models\EnrollmentInvitation;
 use App\Models\User;
+use App\Services\QrCredentialService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -209,6 +211,7 @@ class AcademicTest extends TestCase
 
     public function test_instructor_manages_scoped_lectures_with_new_attendance_defaults(): void
     {
+        $this->travelTo('2026-10-15 10:00:00');
         $offering = $this->offering();
         $lesson = $offering->lessons()->create(['title' => 'Own Lecture', 'title_ar' => 'محاضرتي', 'position' => 1]);
 
@@ -225,6 +228,26 @@ class AcademicTest extends TestCase
         $this->assertSame('2026-10-17 11:00', $session->late_after_at->format('Y-m-d H:i'));
         $this->assertSame('2026-10-17 12:00', $session->attendance_closes_at->format('Y-m-d H:i'));
         $this->assertNull($session->location);
+
+        $this->post('/instructor/schedule/publish', [
+            'session_ids' => [$session->id],
+            'week' => '2026-10-17',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->travelTo('2026-10-17 09:59:59');
+        $this->assertSame('published', $session->fresh()->display_status);
+
+        $this->travelTo('2026-10-17 10:00:00');
+        $this->assertSame('in_progress', $session->fresh()->display_status);
+        $this->assertSame(1, ClassSession::query()->withDisplayStatus('in_progress')->count());
+        $this->get('/instructor/lectures?status=in_progress')
+            ->assertOk()
+            ->assertSee('Own Lecture')
+            ->assertSee('In progress');
+
+        $this->travelTo('2026-10-17 12:00:00');
+        $this->assertSame('ended', $session->fresh()->display_status);
+        $this->assertSame(1, ClassSession::query()->withDisplayStatus('ended')->count());
 
         $foreignOffering = $this->offering();
         $foreignLesson = $foreignOffering->lessons()->create(['title' => 'Foreign Lecture', 'title_ar' => 'محاضرة أخرى', 'position' => 1]);
@@ -243,7 +266,7 @@ class AcademicTest extends TestCase
             ->assertDontSee('Foreign Lecture');
 
         $this->travelTo('2026-10-19 10:00:00');
-        $this->assertSame('ended', $session->display_status);
+        $this->assertSame('ended', $session->fresh()->display_status);
         $this->get('/instructor/lectures?status=ended&search=Own')
             ->assertOk()
             ->assertSee('Own Lecture')
@@ -252,6 +275,91 @@ class AcademicTest extends TestCase
         $this->get('/instructor/schedule')
             ->assertOk()
             ->assertDontSee('name="location"', false);
+    }
+
+    public function test_student_can_create_attendance_intent_with_short_code(): void
+    {
+        $this->travelTo('2026-10-17 10:30:00');
+        $offering = $this->offering();
+        $lesson = $offering->lessons()->create(['title' => 'Attendance Lecture', 'title_ar' => 'محاضرة الحضور', 'position' => 1]);
+        $student = User::factory()->create();
+        $enrollment = app(EnrollmentManager::class)->enroll(
+            $offering->instructor,
+            $offering,
+            $student,
+            $offering->groups->first()->id,
+        );
+        $session = ClassSession::create([
+            'course_offering_id' => $offering->id,
+            'group_id' => $enrollment->group_id,
+            'lesson_id' => $lesson->id,
+            'scheduled_start_at' => now()->subMinutes(30),
+            'scheduled_end_at' => now()->addMinutes(90),
+            'attendance_opens_at' => now(),
+            'attendance_closes_at' => now()->addMinutes(90),
+            'late_after_at' => now()->addMinutes(30),
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+        $issued = app(QrCredentialService::class)->issue($session);
+
+        $response = $this->signIn($student)->post('/attendance/code', ['code' => strtolower($issued['shortCode'])]);
+
+        $intent = AttendanceIntent::sole();
+        $response->assertRedirect(route('attendance.intent', $intent));
+        $this->assertTrue(Str::isUuid($intent->id));
+        $this->assertSame($student->id, $intent->user_id);
+        $this->assertSame($session->id, $intent->class_session_id);
+    }
+
+    public function test_my_lectures_lists_only_sessions_assigned_to_the_student(): void
+    {
+        $this->travelTo('2026-10-15 10:00:00');
+        $offering = $this->offering();
+        $student = User::factory()->create();
+        $enrollment = app(EnrollmentManager::class)->enroll(
+            $offering->instructor,
+            $offering,
+            $student,
+            $offering->groups->first()->id,
+        );
+        $lesson = $offering->lessons()->create(['title' => 'My Assigned Lecture', 'title_ar' => 'محاضرتي المخصصة', 'position' => 1]);
+        ClassSession::create([
+            'course_offering_id' => $offering->id,
+            'group_id' => $enrollment->group_id,
+            'lesson_id' => $lesson->id,
+            'scheduled_start_at' => '2026-10-17 10:00:00',
+            'scheduled_end_at' => '2026-10-17 12:00:00',
+            'attendance_opens_at' => '2026-10-17 10:00:00',
+            'attendance_closes_at' => '2026-10-17 12:00:00',
+            'late_after_at' => '2026-10-17 11:00:00',
+            'status' => 'published',
+        ]);
+        $hiddenLesson = $offering->lessons()->create(['title' => 'Other Group Lecture', 'title_ar' => 'محاضرة مجموعة أخرى', 'position' => 2]);
+        ClassSession::create([
+            'course_offering_id' => $offering->id,
+            'group_id' => $offering->groups->last()->id,
+            'lesson_id' => $hiddenLesson->id,
+            'scheduled_start_at' => '2026-10-18 10:00:00',
+            'scheduled_end_at' => '2026-10-18 12:00:00',
+            'attendance_opens_at' => '2026-10-18 10:00:00',
+            'attendance_closes_at' => '2026-10-18 12:00:00',
+            'late_after_at' => '2026-10-18 11:00:00',
+            'status' => 'published',
+        ]);
+
+        $this->signIn($student)
+            ->get('/student/lectures')
+            ->assertOk()
+            ->assertSee('My Assigned Lecture')
+            ->assertDontSee('Other Group Lecture');
+        $this->get('/student/lectures?period=upcoming')
+            ->assertOk()
+            ->assertSee('My Assigned Lecture');
+        $this->get('/student/lectures?period=past')
+            ->assertOk()
+            ->assertDontSee('My Assigned Lecture');
+        $this->signIn($offering->instructor)->get('/student/lectures')->assertForbidden();
     }
 
     public function test_arabic_student_interface_uses_translated_academic_content(): void

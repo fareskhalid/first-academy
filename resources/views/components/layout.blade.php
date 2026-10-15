@@ -12,7 +12,7 @@
 @auth
 @php($links = auth()->user()->isInstructor()
     ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.lectures'=>['lectures','book'],'instructor.students'=>['students','users'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','graduation'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
-    : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
+    : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'student.lectures'=>['my_lectures','calendar'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
 @endauth
 <a class="skip" href="#main"><x-t k="skip" /></a>
 <header class="topbar">
@@ -35,12 +35,28 @@
     @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><x-icon :name="$icon" :size="19" /><x-t :k="$key" /></a>@endforeach
 </nav>
 @endif @endauth
+<div class="app-toast-region" data-toast-region aria-live="polite" aria-relevant="additions">
+    @if(isset($errors) && $errors->any())
+        <x-toast type="error" :title="__('ui.check_errors')" :timeout="0"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></x-toast>
+    @endif
+    @if(session('status_key'))
+        <x-toast type="success" :title="__('ui.toast_success')"><x-t :k="session('status_key')" /></x-toast>
+    @endif
+    @if(session('registered_code'))
+        <x-toast type="success" :title="__('ui.toast_success')" :timeout="0"><x-t k="registered" /> <strong dir="ltr">{{ session('registered_code') }}</strong></x-toast>
+    @endif
+    @if(session('temporary_password'))
+        <x-toast type="success" :title="__('ui.temporary_password')" :timeout="0"><strong dir="ltr">{{ session('temporary_password') }}</strong></x-toast>
+    @endif
+    @if(session('invitation_url'))
+        <x-toast type="success" :title="__('ui.invitation')" :timeout="0"><a dir="ltr" href="{{ session('invitation_url') }}">{{ session('invitation_url') }}</a></x-toast>
+    @endif
+    @if(session('student_conflicts'))
+        <x-toast type="error" :title="__('ui.toast_error')"><x-t k="student_conflict_warning" />: {{ session('student_conflicts') }}</x-toast>
+    @endif
+</div>
 <main id="main" class="{{ $guest ? 'auth-shell' : 'shell' }}">
     @if($guest)<aside class="auth-intro"><div class="auth-brand-icon"><x-icon name="graduation" :size="34" /></div><div class="eyebrow"><x-t k="app_name" /></div><h1><x-t k="tagline" /></h1><p><x-t k="account_note" /></p><div class="learning-pills" aria-hidden="true"><span><x-icon name="book" :size="18" /></span><span><x-icon name="calendar" :size="18" /></span><span><x-icon name="shield" :size="18" /></span></div></aside><div class="auth-card-wrap">@endif
-    <div class="alert error" x-cloak x-show="$store.i18n.error" x-text="$store.i18n.error" role="alert"></div>
-    @if(isset($errors) && $errors->any())<div class="alert error" role="alert"><strong><x-t k="check_errors" /></strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
-    @if(session('status_key'))<div class="alert" role="status"><x-t :k="session('status_key')" /></div>@endif
-    @if(session('registered_code'))<div class="alert" role="status"><x-t k="registered" /> <strong dir="ltr">{{ session('registered_code') }}</strong></div>@endif
     {{ $slot }}
     @if($guest)</div>@endif
 </main>

@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 class AttendanceIntent extends Model
 {
-    public $incrementing = false;
-
-    protected $keyType = 'string';
+    use HasUuids;
 
     protected $guarded = ['id'];
 

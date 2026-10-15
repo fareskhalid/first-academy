@@ -24,7 +24,7 @@ class QrCredentialService
                 'token_hash' => hash('sha256', $token),
                 'short_code_hash' => hash('sha256', $shortCode),
                 'issued_at' => now(),
-                'expires_at' => now()->addSeconds((int) config('academic.qr_token_seconds', 60)),
+                'expires_at' => now()->addSeconds((int) config('academic.qr_token_seconds', 600)),
             ]);
 
             return compact('credential', 'token', 'shortCode');

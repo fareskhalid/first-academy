@@ -52,6 +52,9 @@
         @case('check')
             <path d="m5 12 4 4L19 6" />
             @break
+        @case('close')
+            <path d="M6 6l12 12M18 6 6 18" />
+            @break
         @case('sparkles')
             <path d="m12 3 1.2 3.3L16.5 7.5l-3.3 1.2L12 12l-1.2-3.3-3.3-1.2 3.3-1.2ZM19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8ZM5 13l.8 2.2L8 16l-2.2.8L5 19l-.8-2.2L2 16l2.2-.8Z" />
             @break

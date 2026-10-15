@@ -11,7 +11,7 @@
 @else
 <p class="muted"><x-t k="invitation_account_prompt" /></p>
 <form method="POST" action="{{ route('invitations.account',$token) }}" class="stack" x-data="{ submitting: false }" @submit="submitting = true">@csrf
-<x-field name="phone" type="tel" autocomplete="tel" hint="phone_hint" required dir="ltr" />
+<x-field name="phone" type="tel" autocomplete="tel" hint="phone_hint" required dir="ltr" maxlength="32" />
 <button class="primary w-full" :disabled="submitting"><span x-show="!submitting"><x-t k="continue" /></span><span x-cloak x-show="submitting"><x-t k="please_wait" /></span></button>
 </form>
 @endauth

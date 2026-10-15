@@ -167,8 +167,7 @@ class ScheduleManager
             abort_unless($session->offering->instructor_id === $actor->id, 403);
             $before = $session->status;
             $next = match ($action) {
-                'start' => $before === 'published' ? 'in_progress' : null,
-                'complete' => $before === 'in_progress' ? 'completed' : null,
+                'complete' => in_array($before, ['published', 'in_progress'], true) && $session->scheduled_start_at->lte(now()) ? 'completed' : null,
                 'cancel' => in_array($before, ['draft', 'published'], true) ? 'cancelled' : null,
                 'close_attendance' => $before,
                 default => null,
@@ -178,11 +177,8 @@ class ScheduleManager
             }
 
             $updates = [];
-            if ($action === 'start') {
-                $updates = ['status' => $next, 'started_at' => now()];
-            }
             if ($action === 'complete') {
-                $updates = ['status' => $next, 'completed_at' => now()];
+                $updates = ['status' => $next, 'started_at' => $session->started_at ?? $session->scheduled_start_at, 'completed_at' => now()];
             }
             if ($action === 'cancel') {
                 $updates = ['status' => $next, 'cancelled_at' => now(), 'cancellation_reason' => $reason];

@@ -4,8 +4,6 @@
     <div class="hero-side"><strong class="stat">{{ $students->total() }}</strong><span><x-t k="students" /></span></div>
 </div>
 
-@if(session('temporary_password'))<div class="alert" role="status"><x-t k="temporary_password" /> <strong dir="ltr">{{ session('temporary_password') }}</strong></div>@endif
-
 <section class="panel student-admin-filter">
     <form method="GET" action="{{ route('instructor.students') }}" class="student-filter-form">
         <x-field name="search" label="search_students" type="search" :value="$search" maxlength="100" autocomplete="off" />
