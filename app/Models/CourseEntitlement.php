@@ -17,4 +17,9 @@ class CourseEntitlement extends Model
     {
         return $this->belongsTo(Enrollment::class);
     }
+
+    public function paymentProof()
+    {
+        return $this->belongsTo(PaymentProof::class, 'source_id')->where('source_type', 'payment_proof');
+    }
 }

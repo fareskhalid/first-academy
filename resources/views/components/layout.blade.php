@@ -11,7 +11,7 @@
 <body x-data class="{{ auth()->check() ? 'role-'.auth()->user()->role : 'role-guest' }}">
 @auth
 @php($links = auth()->user()->isInstructor()
-    ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.lectures'=>['lectures','book'],'instructor.students'=>['students','users'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','graduation'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
+    ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.lectures'=>['lectures','book'],'instructor.students'=>['students','users'],'instructor.payments.index'=>['payments','wallet'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','graduation'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
     : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'student.lectures'=>['my_lectures','calendar'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
 @endauth
 <a class="skip" href="#main"><x-t k="skip" /></a>

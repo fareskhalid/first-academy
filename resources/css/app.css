@@ -131,6 +131,7 @@ html[lang='ar'] .eyebrow { letter-spacing: .04em; }
 .grid { display: grid; gap: 20px; }
 .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .stack > * + * { margin-top: 16px; }
 .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .between { justify-content: space-between; }
@@ -138,6 +139,8 @@ html[lang='ar'] .eyebrow { letter-spacing: .04em; }
 .section-heading { display: flex; align-items: center; gap: 10px; }
 .section-heading .heading-icon { width: 36px; height: 36px; display: grid; place-items: center; color: var(--primary); background: var(--primary-soft); border-radius: 11px; }
 .stat-card { min-height: 150px; justify-content: space-between; }
+.stat-link { color: inherit; text-decoration: none; }
+.stat-link:hover { color: inherit; text-decoration: none; }
 .stat-card .stat-icon { width: 45px; height: 45px; display: grid; place-items: center; color: var(--primary); background: var(--primary-soft); border-radius: 14px; }
 .stat-card:nth-child(2) .stat-icon { color: #087b7d; background: var(--cyan-soft); }
 .stat-card:nth-child(3) .stat-icon { color: #c74f44; background: var(--coral-soft); }
@@ -164,10 +167,13 @@ input[aria-invalid='true'], select[aria-invalid='true'], textarea[aria-invalid='
 .button:hover, button.primary:hover { color: #fff; background: linear-gradient(135deg, #5946d2, #3e2da4); box-shadow: 0 9px 22px rgba(89, 70, 210, .25); transform: translateY(-1px); text-decoration: none; }
 button.secondary, .button.secondary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #fff; border: 1px solid #dcddea; color: #3f4861; min-height: 44px; padding: 9px 14px; border-radius: 11px; font: inherit; font-size: 14px; font-weight: 750; box-shadow: none; }
 button.secondary:hover, .button.secondary:hover { color: var(--primary); border-color: #c9c2f2; background: #f8f6ff; transform: translateY(-1px); text-decoration: none; }
-button.danger { color: #af3535; border-color: #efc4c4; background: #fffafa; }
+button.danger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 15px; color: #af3535; background: #fffafa; border: 1px solid #efc4c4; border-radius: 11px; font: inherit; font-size: 14px; font-weight: 800; }
+button.danger:hover { color: #8f2828; background: #fff0ed; border-color: #e9a9a2; }
 .icon-button { white-space: nowrap; }
 .badge { display: inline-flex; align-items: center; border-radius: 999px; background: #e8f8f1; color: #197051; padding: 5px 11px; font-size: 12px; font-weight: 800; width: fit-content; }
 .badge.neutral { background: #f0f1f6; color: #5c6579; }
+.badge.danger { background: #fff0ed; color: #a33f36; }
+.badge.warning { background: #fff7df; color: #8a6216; }
 .alert { border: 1px solid #b7dfcf; border-inline-start: 4px solid #2b9a70; border-radius: 14px; background: #effaf5; padding: 16px 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm); overflow-wrap: anywhere; }
 .alert.error { background: #fff2f0; border-color: #efc3be; border-inline-start-color: var(--coral); color: #842f2a; }
 .alert ul { list-style: disc; padding-inline-start: 20px; }
@@ -914,6 +920,89 @@ html[lang='ar'] .student-table th { letter-spacing: 0; }
 .invitation-card h1 { color: var(--ink); font-size: 28px; }
 .invitation-group { margin: 8px 0 20px; color: var(--muted); }
 
+.payment-page { --payment-navy: #202b57; }
+.payment-hero { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: auto minmax(0,1fr) auto; align-items: center; gap: 18px; margin-bottom: 16px; padding: 30px 33px; color: #fff; background: linear-gradient(125deg, #34278e, #604bce 56%, #168b91); border-radius: 25px; box-shadow: 0 17px 42px rgba(58,44,148,.21); }
+.payment-hero::after { content: ''; position: absolute; z-index: -1; width: 190px; height: 190px; inset: -110px -50px auto auto; border: 28px solid rgba(255,255,255,.06); border-radius: 50%; }
+[dir='rtl'] .payment-hero::after { inset: -110px auto auto -50px; }
+.payment-hero-icon { width: 59px; height: 59px; display: grid; place-items: center; color: #4635b5; background: linear-gradient(145deg,#ffd369,var(--sun)); border-radius: 18px; box-shadow: 0 10px 22px rgba(30,23,79,.23); }
+.payment-hero h1 { color: #fff; }
+.payment-hero .eyebrow { margin: 0; color: #d8d3ff; }
+.payment-hero p { margin: 4px 0 0; color: #e7e4fc; }
+.payment-export { color: #fff; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.22); box-shadow: none; }
+.payment-insights { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-bottom: 17px; }
+.payment-insights article { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 15px; background: #fff; border: 1px solid var(--line); border-radius: 17px; box-shadow: var(--shadow-sm); }
+.payment-insights article > span { width: 40px; height: 40px; display: grid; flex: 0 0 auto; place-items: center; color: var(--primary); background: var(--primary-soft); border-radius: 12px; }
+.payment-insights .is-warning > span { color: #996712; background: #fff4d4; }
+.payment-insights .is-success > span { color: #197051; background: #e8f8f1; }
+.payment-insights strong,.payment-insights small { display: block; }
+.payment-insights strong { color: var(--ink); font-size: 20px; line-height: 1.25; overflow-wrap: anywhere; }
+.payment-insights small { margin-top: 3px; color: var(--muted); font-size: 10px; font-weight: 750; }
+.payment-settings > summary,.waiver-panel > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--ink); font-weight: 850; }
+.payment-settings > summary::-webkit-details-marker,.waiver-panel > summary::-webkit-details-marker { display: none; }
+.payment-settings > summary span,.waiver-panel > summary span { display: flex; align-items: center; gap: 9px; }
+.payment-settings[open] > summary,.waiver-panel[open] > summary { margin-bottom: 19px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.payment-instruction-grid,.waiver-grid { display: grid; gap: 10px; }
+.payment-instruction-grid > details,.waiver-grid > details { padding: 13px 15px; background: #fafafe; border: 1px solid var(--line); border-radius: 14px; }
+.payment-instruction-grid > details > summary,.waiver-grid > details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 43px; list-style: none; }
+.payment-instruction-grid > details[open] > summary,.waiver-grid > details[open] > summary { margin-bottom: 15px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+.waiver-grid summary span,.waiver-grid summary strong,.waiver-grid summary small { display: block; }
+.waiver-grid summary small { color: var(--muted); }
+.payment-filter-panel { padding: 18px; }
+.payment-filters { display: grid; grid-template-columns: minmax(160px,1fr) minmax(220px,1.5fr) auto auto; align-items: end; gap: 11px; }
+.payment-review-list,.payment-course-list { display: grid; gap: 13px; }
+.payment-review-card,.payment-course-card { overflow: hidden; padding: 21px; background: #fff; border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow-sm); }
+.payment-review-card.is-reviewed { background: #fbfbfd; }
+.payment-review-card > header,.payment-course-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 16px; }
+.payment-student,.payment-course-heading { min-width: 0; }
+.payment-student { display: flex; align-items: center; gap: 11px; }
+.payment-student > span,.payment-course-heading > span { width: 43px; height: 43px; display: grid; flex: 0 0 auto; place-items: center; color: var(--primary); background: var(--primary-soft); border-radius: 13px; font-size: 17px; font-weight: 900; }
+.payment-student h2,.payment-course-heading h2 { margin: 0; font-size: 18px; overflow-wrap: anywhere; }
+.payment-student p,.payment-course-heading small { display: block; margin: 1px 0 0; color: var(--muted); font-size: 11px; }
+.payment-course-heading > div { flex: 1; min-width: 0; }
+.payment-proof-details { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1px; overflow: hidden; margin-bottom: 13px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; }
+.payment-proof-details > div { min-width: 0; padding: 12px; background: #fff; }
+.payment-proof-details small,.payment-proof-details strong { display: block; }
+.payment-proof-details small { color: var(--muted); font-size: 10px; }
+.payment-proof-details strong { margin-top: 2px; color: var(--ink); font-size: 13px; overflow-wrap: anywhere; }
+.payment-warning,.payment-info-note { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; padding: 10px 12px; color: #795719; background: #fff8e6; border: 1px solid #efdca9; border-radius: 12px; font-size: 12px; font-weight: 700; }
+.payment-review-meta { display: flex; align-items: center; justify-content: space-between; gap: 11px; margin-bottom: 13px; color: var(--muted); font-size: 11px; }
+.payment-review-form { display: grid; grid-template-columns: minmax(240px,1.15fr) minmax(190px,.85fr) auto; align-items: end; gap: 12px; padding: 13px; background: #f8f7fd; border-radius: 14px; }
+.payment-confirm-fields { display: grid; grid-template-columns: 1fr 120px; gap: 9px; }
+.payment-review-form > div:last-child { display: flex; gap: 7px; }
+.payment-decision-summary,.payment-decision-note { padding: 12px 14px; background: #f4f4f8; border-radius: 13px; }
+.payment-decision-summary p,.payment-decision-note p { margin: 3px 0; }
+.payment-decision-summary small { color: var(--muted); }
+.payment-decision-note.is-danger { color: #8f352f; background: var(--coral-soft); border: 1px solid #f1cbc6; }
+.payment-revoke { margin-top: 10px; }
+.payment-revoke > summary { color: #a23b34; font-size: 12px; font-weight: 800; }
+.payment-access-strip { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 15px; margin-bottom: 13px; padding: 13px; background: linear-gradient(110deg,#f2efff,#eefafa); border-radius: 14px; }
+.payment-access-strip > div { min-width: 100px; padding-inline-end: 14px; border-inline-end: 1px solid #d8d4ec; }
+.payment-access-strip small,.payment-access-strip strong { display: block; }
+.payment-access-strip small { color: var(--muted); font-size: 9px; }
+.payment-access-strip strong { color: var(--primary-dark); font-size: 25px; line-height: 1; }
+.payment-access-strip p { margin: 0; color: #4f5870; font-size: 12px; }
+.payment-instructions { margin-bottom: 13px; padding: 15px; background: #fbfbfe; border: 1px solid var(--line); border-radius: 14px; }
+.payment-instructions h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 15px; }
+.payment-instructions p { margin: 0; color: #515b72; font-size: 13px; overflow-wrap: anywhere; }
+.payment-instructions > div { margin-top: 11px; padding-top: 10px; border-top: 1px solid var(--line); }
+.payment-upload,.payment-history { margin-top: 10px; padding: 0 13px 13px; background: #fafafe; border: 1px solid var(--line); border-radius: 14px; }
+.payment-upload > summary,.payment-history > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; font-size: 13px; font-weight: 800; }
+.payment-upload > summary span,.payment-history > summary span { display: flex; align-items: center; gap: 7px; }
+.payment-upload[open] > summary,.payment-history[open] > summary { margin-bottom: 13px; border-bottom: 1px solid var(--line); }
+.payment-history-list { display: grid; gap: 8px; }
+.payment-history-list > div { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 10px; padding: 9px; background: #fff; border-radius: 11px; }
+.payment-history-list span,.payment-history-list small { display: block; }
+.payment-history-list small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.payment-history-list a { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; }
+.student-payment-summary,.student-payment-alert { display: flex; align-items: center; gap: 12px; margin-bottom: 13px; padding: 15px; color: var(--ink); text-decoration: none; background: linear-gradient(110deg,#f2efff,#fff 54%,#eaf9f7); border: 1px solid #dcd7f3; border-radius: 17px; box-shadow: var(--shadow-sm); }
+.student-payment-summary:hover,.student-payment-alert:hover { color: var(--ink); text-decoration: none; border-color: #c6bced; }
+.student-payment-summary > span,.student-payment-alert > span { width: 41px; height: 41px; display: grid; flex: 0 0 auto; place-items: center; color: var(--primary); background: #e8e2ff; border-radius: 12px; }
+.student-payment-summary > div,.student-payment-alert > div { flex: 1; min-width: 0; }
+.student-payment-summary small,.student-payment-summary strong,.student-payment-summary p,.student-payment-alert strong,.student-payment-alert small { display: block; margin: 0; }
+.student-payment-summary small,.student-payment-alert small { color: var(--muted); font-size: 10px; }
+.student-payment-summary p { color: var(--muted); font-size: 11px; }
+.student-payment-summary strong,.student-payment-alert strong { font-size: 14px; }
+
 @media (max-width: 960px) and (min-width: 761px) {
     .schedule-workspace { grid-template-columns: 1fr; }
     .schedule-section-heading .calendar-legend { max-width: 310px; }
@@ -926,6 +1015,8 @@ html[lang='ar'] .student-table th { letter-spacing: 0; }
     .session-action-form button { grid-column: 1 / -1; }
     .session-makeup-form { grid-template-columns: 1fr 1fr; }
     .session-makeup-form button { grid-column: 1 / -1; }
+    .grid.four,.payment-insights { grid-template-columns: 1fr 1fr; }
+    .payment-filters { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 760px) {
@@ -938,7 +1029,7 @@ html[lang='ar'] .student-table th { letter-spacing: 0; }
     .topbar-inner { padding: 12px 16px 9px; gap: 8px; }
     .nav { padding-inline: 10px; gap: 2px; }
     .nav a { padding: 8px 10px; font-size: 13px; }
-    .grid.two, .grid.three { grid-template-columns: 1fr; }
+    .grid.two, .grid.three, .grid.four { grid-template-columns: 1fr; }
     .hero { padding: 28px 24px; align-items: flex-start; flex-direction: column; border-radius: 21px; }
     .hero-side { min-width: 0; width: 100%; }
     .panel, .card { padding: 21px; border-radius: 17px; }
@@ -1008,6 +1099,32 @@ html[lang='ar'] .student-table th { letter-spacing: 0; }
     .student-attendance-context { grid-template-columns: 1fr; }
     .student-result-details { grid-template-columns: 1fr; }
     .student-action-card, .student-info-card { padding: 17px; }
+    .payment-hero { grid-template-columns: auto minmax(0,1fr); gap: 12px; padding: 21px 18px; border-radius: 21px; }
+    .payment-hero-icon { width: 48px; height: 48px; border-radius: 15px; }
+    .payment-hero h1 { font-size: 27px; }
+    .payment-hero p { font-size: 11px; }
+    .payment-export { grid-column: 1 / -1; width: 100%; }
+    .payment-insights { grid-template-columns: 1fr 1fr; gap: 7px; }
+    .payment-insights article { align-items: flex-start; flex-direction: column; padding: 11px; }
+    .payment-insights article > span { width: 34px; height: 34px; }
+    .payment-insights strong { font-size: 17px; }
+    .payment-filter-panel { padding: 14px; }
+    .payment-filters { grid-template-columns: 1fr; }
+    .payment-review-card,.payment-course-card { padding: 15px; border-radius: 17px; }
+    .payment-review-card > header,.payment-course-heading { align-items: flex-start; }
+    .payment-course-heading { flex-wrap: wrap; }
+    .payment-course-heading .badge { margin-inline-start: 54px; }
+    .payment-proof-details { grid-template-columns: 1fr 1fr; }
+    .payment-review-meta { align-items: stretch; flex-direction: column; }
+    .payment-review-meta .button { width: 100%; }
+    .payment-review-form { grid-template-columns: 1fr; }
+    .payment-confirm-fields { grid-template-columns: 1fr 105px; }
+    .payment-review-form > div:last-child { display: grid; grid-template-columns: 1fr 1fr; }
+    .payment-review-form button { width: 100%; }
+    .payment-access-strip { grid-template-columns: 1fr; }
+    .payment-access-strip > div { display: flex; align-items: center; justify-content: space-between; padding: 0 0 9px; border: 0; border-bottom: 1px solid #d8d4ec; }
+    .payment-history-list > div { grid-template-columns: 1fr auto; }
+    .payment-history-list a { grid-column: 1 / -1; }
     .invitation-card { text-align: start; }
     .invitation-icon { margin-inline: 0; }
     .hero-actions { width: 100%; }

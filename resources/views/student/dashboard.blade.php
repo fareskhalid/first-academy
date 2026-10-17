@@ -8,6 +8,10 @@
     <time datetime="{{ now()->toDateString() }}">{{ now()->locale(app()->getLocale())->translatedFormat('l، j F') }}</time>
 </section>
 
+@if($enrollments->whereIn('payment_state', ['payment_required','payment_rejected','payment_revoked','payment_pending'])->isNotEmpty())
+<a class="student-payment-alert" href="{{ route('student.payments.index') }}"><span><x-icon name="wallet" :size="21" /></span><div><strong><x-t k="payment_updates" /></strong><small><x-t k="payment_updates_hint" /></small></div><x-icon name="arrow" :size="18" /></a>
+@endif
+
 <section class="student-dashboard-insights" aria-label="{{ __('ui.learning_overview') }}">
     <article><span><x-icon name="book" :size="20" /></span><div><strong>{{ $insights['active_courses'] }}</strong><small><x-t k="active_courses" /></small></div></article>
     <article><span><x-icon name="check" :size="20" /></span><div><strong>{{ $insights['attendance_rate'] === null ? '—' : $insights['attendance_rate'].'%' }}</strong><small><x-t k="attendance_rate" /></small></div></article>
@@ -42,7 +46,7 @@
     <div class="student-course-copy"><span>{{ $enrollment->offering->semester->display_name }} · {{ $enrollment->offering->course->code }}</span><h3>{{ $enrollment->offering->display_title }}</h3><p>{{ $enrollment->group?->display_name }}</p>
         <div class="student-course-progress"><span><i style="width: {{ $courseRate ?? 0 }}%"></i></span><small>{{ $courseRate === null ? __('ui.no_attendance_data') : $courseRate.'% '.__('ui.attendance_rate') }}</small></div>
     </div>
-    <div class="student-course-meta"><x-status :value="$enrollment->status" /><a href="{{ route('student.courses.show',$enrollment->offering) }}" aria-label="{{ __('ui.view_course') }}"><x-icon name="arrow" :size="20" /></a></div>
+    <div class="student-course-meta"><x-status :value="$enrollment->payment_state" /><a href="{{ route('student.courses.show',$enrollment->offering) }}" aria-label="{{ __('ui.view_course') }}"><x-icon name="arrow" :size="20" /></a></div>
 </article>
 @empty
 <div class="empty"><h2><x-t k="no_courses" /></h2><p class="muted"><x-t k="no_courses_hint" /></p></div>

@@ -61,4 +61,9 @@ class CourseOffering extends Model
     {
         return $this->hasMany(ClassSession::class);
     }
+
+    public function paymentInstruction()
+    {
+        return $this->hasOne(PaymentInstruction::class);
+    }
 }

@@ -22,4 +22,9 @@ class AccessWaiver extends Model
     {
         return $this->belongsTo(User::class, 'issued_by');
     }
+
+    public function revoker()
+    {
+        return $this->belongsTo(User::class, 'revoked_by');
+    }
 }

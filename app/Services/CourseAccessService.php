@@ -24,7 +24,7 @@ class CourseAccessService implements CourseAccess
             return 'entitlement';
         }
 
-        if ($enrollment->accessWaivers()->whereNull('revoked_at')->where('scope', 'attendance')->where('valid_from', '<=', $at)
+        if ($enrollment->accessWaivers()->whereNull('revoked_at')->whereIn('scope', ['course', 'attendance'])->where('valid_from', '<=', $at)
             ->where(fn ($query) => $query->whereNull('valid_until')->orWhere('valid_until', '>', $at))->exists()) {
             return 'waiver';
         }

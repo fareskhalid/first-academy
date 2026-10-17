@@ -56,6 +56,16 @@ class Enrollment extends Model
         return $this->hasMany(AccessWaiver::class);
     }
 
+    public function paymentProofs()
+    {
+        return $this->hasMany(PaymentProof::class)->latest('id');
+    }
+
+    public function latestPaymentProof()
+    {
+        return $this->hasOne(PaymentProof::class)->latestOfMany();
+    }
+
     public function rosterEntries()
     {
         return $this->hasMany(SessionRosterEntry::class);

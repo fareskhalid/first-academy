@@ -2,26 +2,42 @@
 
 namespace App\Http\Controllers;
 
+use App\Contracts\CourseAccess;
 use App\Models\AuditEvent;
 use App\Models\ClassSession;
 use App\Models\Course;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
+use App\Models\PaymentProof;
 use App\Models\Semester;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function index(Request $r)
+    public function index(Request $r, CourseAccess $access)
     {
         $user = $r->user();
         if (! $user->isInstructor()) {
             $enrollments = $user->enrollments()
-                ->with(['offering.course', 'offering.semester', 'group'])
+                ->with(['offering.course', 'offering.semester', 'group', 'latestPaymentProof', 'accessWaivers'])
                 ->withCount([
                     'attendances as attended_count' => fn ($query) => $query->whereIn('status', ['present', 'late']),
                     'attendances as absent_count' => fn ($query) => $query->where('status', 'absent'),
                 ])->latest()->get();
+            foreach ($enrollments as $enrollment) {
+                $attended = $access->attendedCount($enrollment);
+                $source = $access->source($enrollment, now());
+                $state = match (true) {
+                    $enrollment->latestPaymentProof?->status === 'approved' => 'payment_approved',
+                    $source === 'waiver' => 'waived',
+                    $enrollment->latestPaymentProof?->status === 'pending' => 'payment_pending',
+                    $enrollment->latestPaymentProof?->status === 'rejected' => 'payment_rejected',
+                    $enrollment->latestPaymentProof?->status === 'revoked' => 'payment_revoked',
+                    $attended < (int) config('academic.free_attended_lessons', 2) => 'free_access',
+                    default => 'payment_required',
+                };
+                $enrollment->setAttribute('payment_state', $state);
+            }
             $activeEnrollments = $enrollments->where('status', 'enrolled');
             $futureSessions = ClassSession::query()
                 ->where('status', 'published')
@@ -62,6 +78,8 @@ class DashboardController extends Controller
             'todaySessions' => $todaySessions,
             'unresolvedSessions' => ClassSession::whereHas('offering', fn ($q) => $q->where('instructor_id', $user->id))
                 ->whereIn('status', ['published', 'in_progress'])->where('scheduled_end_at', '<', now())->count(),
+            'pendingPaymentCount' => PaymentProof::where('status', 'pending')
+                ->whereHas('enrollment.offering', fn ($q) => $q->where('instructor_id', $user->id))->count(),
         ]);
     }
 

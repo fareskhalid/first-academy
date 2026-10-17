@@ -301,13 +301,13 @@ If connectivity fails, show “Attendance not confirmed” and allow a status ch
 Payment file and review lifecycles:
 
 ```text
-file: uploaded -> quarantined -> safe OR rejected_file
-review (safe file only): pending_review -> approved OR rejected
+file: validate type/extension/size -> stored_private OR rejected_file
+review (stored private file only): pending_review -> approved OR rejected
 approved -> revoked
 rejected/revoked -> new submission (new proof)
 ```
 
-`quarantined` is a file-processing status. Unsafe/invalid uploads fail file processing and never enter the review queue. The payment decision status remains separate: pending, approved, rejected, or revoked. Resubmission creates a new proof; it does not rewrite the previous decision. Permit one open pending submission per enrollment to reduce duplicate work, while still preserving rejected/revoked history.
+Unsupported, oversized, or disguised uploads fail validation and never enter the review queue. Malware scanning and quarantine processing are intentionally excluded from the first release. The payment decision status is pending, approved, rejected, or revoked. Resubmission creates a new proof; it does not rewrite the previous decision. Permit one open pending submission per enrollment to reduce duplicate work, while still preserving rejected/revoked history.
 
 The instructor verifies the receipt against actual received funds outside the system. The application does not claim bank verification, issue a tax invoice, or execute a refund. A partial, wrong-currency, or wrong-course payment cannot automatically activate the offering. The instructor rejects it with guidance or creates a reasoned waiver; installments are deferred.
 
@@ -319,7 +319,7 @@ Approval remains manual even if file checks succeed. Proposed operating target: 
 
 #### Upload protection
 
-Validate actual file type, extension, and size; use random storage names; keep files outside the public web directory; quarantine until malware checking completes; and authorize every download. Serve approved previews through safe image rendering or an isolated PDF viewer/download response. These controls follow the [OWASP file upload guidance](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).
+Validate actual file type, extension, and size; use random storage names; keep files outside the public web directory; and authorize every download. Render supported images only through an authenticated response and force PDFs to download with restrictive response headers. Malware scanning and quarantine are out of scope by product decision. The remaining controls follow the [OWASP file upload guidance](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).
 
 The receipt screen explains accepted formats before upload. HEIC is not accepted in the initial server pipeline; offer a supported camera-generated image where available and clear guidance to use JPEG/PNG or PDF. Test actual iPhone uploads before release. A phone purchase or a desktop computer must not be required.
 
@@ -553,11 +553,11 @@ Absence finalization uses roster obligations grouped by enrollment/lesson, so an
 
 | Entity | Essential data | Important constraints |
 | --- | --- | --- |
-| `payment_proofs` | Enrollment, private file key, detected MIME/size/hash, scan status, claimed amount/currency/date/method/reference, review state | One current pending proof per enrollment enforced transactionally; claims remain separate from reviewer-confirmed values. |
+| `payment_proofs` | Enrollment, private file key, detected MIME/size/hash, claimed amount/currency/date/method/reference, review state | One current pending proof per enrollment enforced transactionally; claims remain separate from reviewer-confirmed values. |
 | `payment_reviews` | Proof, reviewer, decision, confirmed amount/currency, reason, time | Append-only decisions; a proof has one effective approval; rejection/revocation requires reason. |
 | `course_entitlements` | Enrollment, source proof or instructor waiver, valid-from/until, revocation details | Scope to one enrollment; overlapping grants must not duplicate access periods. |
 | `access_waivers` | Enrollment, covered actions, start/end, reason, issuing instructor | Expiry is checked on every new protected action, even if cleanup has not run. |
-| `stored_files` | Owner/context, storage key, content type, size, scan state, retention date | Private by default; only safe files can be previewed/downloaded by an authorized actor. |
+| `stored_files` | Owner/context, storage key, content type, size, retention date | Private by default; only validated supported files can be previewed/downloaded by an authorized actor. |
 
 #### Assessments
 
@@ -621,7 +621,7 @@ The diagram shows the central relationships; it omits revision and delivery tabl
 | Save or submit | Lock attempt and relevant answer; compare deadline/revision; apply save or one finalization. | Duplicate submission returns its receipt; stale answer versions return a conflict without overwriting. |
 | Transfer/publish | Validate roster/time conflicts and ownership before commit; record changes and pending notifications. | Stable operation keys prevent repeat transfers, duplicated sessions, or repeated internal notifications. |
 
-Choose and document one consistent lock ordering before implementation to prevent deadlocks across attendance, approval, and transfer paths. A retry after a deadlock repeats the whole action and still respects uniqueness. Transactions hold database locks only; external file scanning and notification delivery happen outside them.
+Choose and document one consistent lock ordering before implementation to prevent deadlocks across attendance, approval, and transfer paths. A retry after a deadlock repeats the whole action and still respects uniqueness. Transactions hold database locks only; file storage and notification delivery remain coordinated without pretending the filesystem participates in the database transaction.
 
 Use `Africa/Cairo` for application and database date handling. Convert local schedule input consistently and retain database timestamps using the configured database connection timezone. The timezone is fixed and is not editable by instructors or students. Browser clocks supply display hints only.
 
@@ -671,7 +671,7 @@ Service names below are proposed Compose names. Worker/scheduler/Vite entries ar
 | `queue` and `scheduler` | Run queued jobs and scheduled tasks as separate services using the same application image/code | Explicit worker command and a single scheduler process; restart behavior and logs documented. Development may use `php artisan queue:work` and `php artisan schedule:work`. |
 | `vite` | Run the containerized Node/Vite development process | Use the project's compatible Node version and locked packages; configured browser-reachable asset/HMR address. Production receives compiled assets. |
 
-Private receipt storage uses a persistent private local directory during development and the Serv00 pilot. All app/worker processes that handle files must share access to that directory. Validate paired database/file backup and restoration on staging before release; S3-compatible storage remains an upgrade path. Add the file-scanning service or endpoint needed for receipt quarantine in Sprint 3; the default development stack does not require an email service.
+Private receipt storage uses a persistent private local directory during development and the Serv00 pilot. All app/worker processes that handle files must share access to that directory. Validate paired database/file backup and restoration on staging before release; S3-compatible storage remains an upgrade path. Malware scanning and quarantine are excluded from this release; the default development stack does not require an email service.
 
 Commit image version constraints and dependency lockfiles; avoid floating `latest` tags. Choose compatible patches, PHP extensions, and a Node version in Sprint 1 and update them deliberately. Container connections use Compose service names; `localhost` inside a container refers to that container, not the host database. Publish only needed browser ports by default; optional database debugging ports bind to the local machine.
 
@@ -729,7 +729,7 @@ WCAG alignment is an implementation target, not a claim of certification. Use th
 
 1. Use HTTPS throughout, secure/HTTP-only session cookies, CSRF protection, strong password hashing, and rate limits for login/registration. Refresh session identity after login and invalidate sessions on suspension/password reset. Phone/code aliases share account-level throttling; no email/phone verification is added.
 2. Require authentication for every course action, including QR details, intent creation, and direct Livewire requests; authorize each nested record, export, and receipt download. Treat all properties/identifiers as untrusted. Student-facing test payloads contain no correct answers or grading keys before release.
-3. Apply private-file quarantine and validation, safe rendering, storage access controls, and upload limits at proxy/PHP/application layers. Set transport limits above the 10 MB application file limit to allow request overhead, while keeping the application limit authoritative.
+3. Apply private-file validation, safe rendering/download headers, storage access controls, and upload limits at proxy/PHP/application layers. Set transport limits above the 10 MB application file limit to allow request overhead, while keeping the application limit authoritative.
 4. Collect only needed student/payment information; redact sensitive logs and avoid advertising analytics on attendance, payment, and test pages. Use synthetic data in development/staging.
 5. Provide a retention/deletion policy, student correction/export process, restricted backups, and an incident contact. Confirm applicable local obligations before choosing final retention periods; this document does not establish legal retention requirements.
 
@@ -766,7 +766,7 @@ Destructive deletion, payment revocation, attempt invalidation, and archival act
 | AT-11 | A student with two attendances uploads a receipt. | Proof is pending until reviewed; a third attendance stays blocked. Rejection supplies a reason and permits a new submission. | FR-PY-02, FR-PY-03 |
 | AT-12 | An instructor approves a valid receipt for course A while the student is unpaid in B. | Only A unlocks; repeated approval does not create a duplicate grant or report amount. | FR-PY-04 |
 | AT-13 | A user guesses another student's receipt path, enrollment ID, or test attempt ID. | No private data is disclosed; server policy rejects access, including Livewire requests and exports. | FR-ID-01, NFR-03 |
-| AT-14 | A proof is malicious, oversized, unsupported, or quarantined. | It cannot be publicly accessed or approved; student receives a safe actionable error. | FR-PY-02, NFR-03 |
+| AT-14 | A proof is oversized, unsupported, or disguised with a false extension/MIME type. | It is rejected before a proof record is created and cannot be publicly accessed; the student receives an actionable error. | FR-PY-02, NFR-03 |
 | AT-15 | Payment is revoked or a waiver expires while a test is already running. | Future protected actions use the new access state; the granted attempt can finish unless explicitly invalidated/suspended. | FR-PY-05, BR-12 |
 
 #### Tests and release readiness
@@ -884,7 +884,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 **Outcome:** receipt review controls course access without blocking login or other courses.
 
 1. Build payment-instruction screens and course access labels using enrollment payment states: FR-PY-01 and FR-RP-02.
-2. Implement private uploads, validation, quarantine/scanning, preview/download authorization, and submission history: FR-PY-02.
+2. Implement private uploads, actual type/extension/size validation, authenticated image preview/PDF download, and submission history. Malware scanning and quarantine remain excluded: FR-PY-02.
 3. Implement review queue, approval/rejection, resubmission, revocation, and bounded waivers: FR-PY-03–05. Apply the same access decision in attendance and manual corrections.
 4. Add payment notifications, pending-review dashboard, and approved-payment reporting foundation: FR-NT-03, FR-RP-01/04.
 5. Run AT-11–15 as applicable before tests exist, approval/check-in concurrency tests, and iPhone/Android upload checks. Verify that unapproved files and receipts are never public.
@@ -937,7 +937,7 @@ The pilot week must fit within the sprint through early feature completion; othe
 | FR-RP-01–05: dashboards/reports/audit | Foundations in Sprints 1–4 | Sprint 5 |
 | FR-LC-01–05: English/Arabic and LTR/RTL | Foundation in Sprint 1; each feature translated/tested in its own sprint | Complete translation/device/export regression in Sprint 5 |
 | NFR-01–05: quality and operations | Baseline in Sprint 1; exercised throughout | Sprint 5 operational acceptance |
-| ENV-01–05: Docker setup, CI, and runtime lifecycle | Local setup/CI in Sprint 1; private file-scanning integration in Sprint 3 | ENV-01–04 in Sprint 1; ENV-05 deployment/rollback acceptance in Sprint 5 |
+| ENV-01–05: Docker setup, CI, and runtime lifecycle | Local setup/CI in Sprint 1; private receipt storage in Sprint 3 | ENV-01–04 in Sprint 1; ENV-05 deployment/rollback acceptance in Sprint 5 |
 
 ### 5.9 Decisions to confirm during implementation planning
 

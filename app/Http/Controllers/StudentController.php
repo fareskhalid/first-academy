@@ -84,6 +84,7 @@ class StudentController extends Controller
         $offering->load(['course', 'semester', 'groups', 'lessons']);
         $enrollment = $offering->enrollments()->with([
             'group', 'memberships.group', 'transferRequests.group',
+            'paymentProofs.reviewer', 'accessWaivers',
             'attendances' => fn ($query) => $query->with(['lesson', 'session'])->latest('recorded_at'),
         ])->where('student_id', auth()->id())->firstOrFail();
         $sessions = $offering->classSessions()->whereIn('status', ['published', 'in_progress', 'completed'])
@@ -93,13 +94,23 @@ class StudentController extends Controller
         $attendedCount = $access->attendedCount($enrollment);
         $remainingFree = max(0, (int) config('academic.free_attended_lessons', 2) - $attendedCount);
         $accessSource = $access->source($enrollment, now());
+        $latestProof = $enrollment->paymentProofs->first();
+        $paymentState = match (true) {
+            $latestProof?->status === 'approved' => 'payment_approved',
+            $accessSource === 'waiver' => 'waived',
+            $latestProof?->status === 'pending' => 'payment_pending',
+            $latestProof?->status === 'rejected' => 'payment_rejected',
+            $latestProof?->status === 'revoked' => 'payment_revoked',
+            $remainingFree > 0 => 'free_access',
+            default => 'payment_required',
+        };
         $attendanceRecorded = $enrollment->attendances->whereIn('status', ['present', 'late'])->count();
         $absenceCount = $enrollment->attendances->where('status', 'absent')->count();
         $attendanceTotal = $attendanceRecorded + $absenceCount;
         $attendanceRate = $attendanceTotal > 0 ? (int) round(($attendanceRecorded / $attendanceTotal) * 100) : null;
         $nextSession = $sessions->first(fn ($session) => $session->scheduled_start_at->isFuture());
 
-        return view('student.course', compact('offering', 'enrollment', 'sessions', 'attendedCount', 'remainingFree', 'accessSource', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
+        return view('student.course', compact('offering', 'enrollment', 'sessions', 'attendedCount', 'remainingFree', 'accessSource', 'paymentState', 'latestProof', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
     }
 
     public function transfer(Request $r, Enrollment $enrollment, EnrollmentManager $manager)

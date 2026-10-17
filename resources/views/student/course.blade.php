@@ -28,8 +28,12 @@
     </form>
 </section>
 
+<a class="student-payment-summary" href="{{ route('student.payments.index') }}#enrollment-{{ $enrollment->id }}">
+    <span><x-icon name="wallet" :size="22" /></span><div><small><x-t k="course_access" /></small><strong><x-t :k="$paymentState" /></strong><p>@if($remainingFree > 0)<x-t k="free_attendance_remaining" />: {{ $remainingFree }}@else<x-t :k="$paymentState.'_hint'" />@endif</p></div><x-icon name="arrow" :size="18" />
+</a>
+
 @if($offering->course->display_description)
-<section class="student-info-card student-course-about"><div><h2><x-t k="about_course" /></h2><p>{{ $offering->course->display_description }}</p></div><x-status :value="$accessSource ? 'access_available' : 'payment_required'" /></section>
+<section class="student-info-card student-course-about"><div><h2><x-t k="about_course" /></h2><p>{{ $offering->course->display_description }}</p></div></section>
 @endif
 
 <section class="student-content-section" id="course-schedule">
