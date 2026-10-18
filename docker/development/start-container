@@ -9,6 +9,12 @@ if [ ! -z "$WWWUSER" ]; then
     usermod -u $WWWUSER sail
 fi
 
+# Named volumes are initialized as root. The web, queue, and scheduler
+# processes run as sail and must share writable access to private uploads.
+mkdir -p /var/www/html/storage/app/private
+chown -R sail:sail /var/www/html/storage/app/private
+chmod -R u+rwX,g+rwX /var/www/html/storage/app/private
+
 if [ ! -d /.composer ]; then
     mkdir /.composer
 fi

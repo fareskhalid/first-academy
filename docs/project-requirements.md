@@ -293,7 +293,7 @@ If connectivity fails, show “Attendance not confirmed” and allow a status ch
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |
 | FR-PY-01 | Display payment instructions and access status per offering. | Student sees remaining free attendances and where/how to pay, including required reference information. The application does not configure or display a course fee. |
-| FR-PY-02 | Accept a private payment proof upload. | JPEG, PNG, or PDF up to 10 MB; collect amount, currency, payment date, method, and reference if available. Reject invalid files without losing other entered fields. |
+| FR-PY-02 | Accept a private payment proof upload. | JPEG, PNG, or PDF up to 10 MB; collect the amount and payment date. The system always records EGP currency and cash payment method, with no payment-reference input. Reject invalid files without losing other entered fields. |
 | FR-PY-03 | Provide an instructor review queue. | Filter by offering/status; inspect proof and enrollment; approve or reject with a reason. Rejection is visible to the student with instructions to resubmit. |
 | FR-PY-04 | Apply review decisions consistently. | Approving proof and creating course entitlement happen in one transaction. Repeated/concurrent review does not duplicate credit; approval for one course cannot unlock another. |
 | FR-PY-05 | Handle resubmission, revocation, and temporary waivers. | Retain previous submissions; record reviewer/time/reason; notify the student. Revocation affects future access, preserves historical attendance/grades, and does not erase a receipt. |
@@ -309,11 +309,11 @@ rejected/revoked -> new submission (new proof)
 
 Unsupported, oversized, or disguised uploads fail validation and never enter the review queue. Malware scanning and quarantine processing are intentionally excluded from the first release. The payment decision status is pending, approved, rejected, or revoked. Resubmission creates a new proof; it does not rewrite the previous decision. Permit one open pending submission per enrollment to reduce duplicate work, while still preserving rejected/revoked history.
 
-The instructor verifies the receipt against actual received funds outside the system. The application does not claim bank verification, issue a tax invoice, or execute a refund. A partial, wrong-currency, or wrong-course payment cannot automatically activate the offering. The instructor rejects it with guidance or creates a reasoned waiver; installments are deferred.
+The instructor verifies the receipt against actual received funds outside the system. The application does not claim bank verification, issue a tax invoice, or execute a refund. A partial or wrong-course payment cannot automatically activate the offering. The instructor rejects it with guidance or creates a reasoned waiver; installments are deferred.
 
 Payments may be submitted before the free classes are used. Approval provides course access through the offering's end, subject to enrollment/account status. Any extension or waiver is explicit and audited.
 
-If claimed or confirmed payment amounts are recorded from a receipt, store them in integer minor units with currency and never use floating-point arithmetic. Receipt reference/hash matches produce a review warning, not automatic rejection: repeated references and identical files require human interpretation.
+Store claimed and confirmed EGP payment amounts in integer minor units and never use floating-point arithmetic. Identical receipt file hashes produce a review warning rather than automatic rejection because repeated files require human interpretation.
 
 Approval remains manual even if file checks succeed. Proposed operating target: review within 24 hours and clear pending receipts before a student's next paid class. The dashboard highlights overdue reviews.
 
@@ -381,7 +381,7 @@ In-app records are the durable source of notification history. Dispatch notifica
 | FR-RP-01 | Provide an instructor dashboard. | Show today's classes, next-week publication status, pending receipts, attendance issues, and tests needing grading. Counts link to filtered records. |
 | FR-RP-02 | Provide a student dashboard. | Show next class, course cards, remaining free attendances/payment state, available tests, and unread notices. Each card has a clear primary action. |
 | FR-RP-03 | Report attendance per student, session, group, and offering. | Filter by semester/date/status; distinguish present, late, absent, excused, and payment-blocked scans. Transfers and late joins do not distort expected classes. |
-| FR-RP-04 | Report payment approvals and test outcomes; export CSV. | Separate submitted amounts from approved totals; show currency separately; authorize exports and escape spreadsheet formula prefixes. Never label unverified receipts as collected revenue. |
+| FR-RP-04 | Report payment approvals and test outcomes; export CSV. | Separate submitted amounts from approved totals, label all payment amounts as EGP, authorize exports, and escape spreadsheet formula prefixes. Never label unverified receipts as collected revenue. |
 | FR-RP-05 | Maintain an audit trail and archive completed periods. | Review actor/time/reason for attendance changes, enrollment transfers, payment decisions, waivers, schedule changes, grading, and suspensions. Archiving does not remove historical evidence. |
 
 Attendance percentage is `(present + late) / (present + late + absent) × 100` over delivered, finalized eligible sessions. Excused and cancelled sessions are excluded; zero denominator displays “N/A.” Count at most one obligation/credit for the same lesson per student, including authorized makeup sessions. Reports show the numerator and denominator so the percentage is understandable.
@@ -553,8 +553,8 @@ Absence finalization uses roster obligations grouped by enrollment/lesson, so an
 
 | Entity | Essential data | Important constraints |
 | --- | --- | --- |
-| `payment_proofs` | Enrollment, private file key, detected MIME/size/hash, claimed amount/currency/date/method/reference, review state | One current pending proof per enrollment enforced transactionally; claims remain separate from reviewer-confirmed values. |
-| `payment_reviews` | Proof, reviewer, decision, confirmed amount/currency, reason, time | Append-only decisions; a proof has one effective approval; rejection/revocation requires reason. |
+| `payment_proofs` | Enrollment, private file key, detected MIME/size/hash, claimed EGP amount, payment date, fixed cash method, review state | One current pending proof per enrollment enforced transactionally; claims remain separate from reviewer-confirmed values. |
+| `payment_reviews` | Proof, reviewer, decision, confirmed EGP amount, reason, time | Append-only decisions; a proof has one effective approval; rejection/revocation requires reason. |
 | `course_entitlements` | Enrollment, source proof or instructor waiver, valid-from/until, revocation details | Scope to one enrollment; overlapping grants must not duplicate access periods. |
 | `access_waivers` | Enrollment, covered actions, start/end, reason, issuing instructor | Expiry is checked on every new protected action, even if cleanup has not run. |
 | `stored_files` | Owner/context, storage key, content type, size, retention date | Private by default; only validated supported files can be previewed/downloaded by an authorized actor. |
@@ -945,7 +945,7 @@ The attendance interpretation, Saturday week start, English/Arabic support, phon
 
 | Decision | Default used in this document | Latest decision point |
 | --- | --- | --- |
-| Commercial/access policy | Payment approval and two free attendances reset for each semester offering. The system stores no course fee; the instructor reviews proofs and supplies payment methods and receiving instructions. Audited waivers are allowed. | Before Sprint 3 payment screens |
+| Commercial/access policy | Payment approval and two free attendances reset for each semester offering. The system stores no course fee; payments are cash in EGP, and the instructor reviews proofs and supplies receiving instructions. Audited waivers are allowed. | Before Sprint 3 payment screens |
 | Academic operations | One active group; shared lesson identities across groups; fixed `Africa/Cairo` timezone; instructor/invitation enrollment only; students see only their enrolled offerings. Saturday week start is fixed. | Confirmed in Sprint 1 |
 | Account recovery, locale details, and devices | Review instructor-assisted recovery, optional instructor authenticator-app 2FA, generated student-code format, and English fallback when no supported browser preference exists. Both languages and no email/phone verification are fixed; sample student devices determine browser support. | Sprint 1 prototype |
 | Assessments | Standard tests follow trial/payment eligibility; optional free or paid-only tests; single-choice/true-false/text questions; one initial attempt; no code execution; instructor-controlled result release. | Before Sprint 4 |

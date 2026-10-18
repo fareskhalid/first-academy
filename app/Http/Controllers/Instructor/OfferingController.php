@@ -20,7 +20,17 @@ class OfferingController extends Controller
     public function index(Request $r)
     {
         return view('instructor.offerings', [
-            'offerings' => CourseOffering::where('instructor_id', $r->user()->id)->with(['course', 'semester'])->withCount('enrollments')->latest()->get(),
+            'offerings' => CourseOffering::where('instructor_id', $r->user()->id)
+                ->with(['course', 'semester'])
+                ->withCount([
+                    'enrollments',
+                    'enrollments as active_enrollments_count' => fn ($query) => $query->where('status', 'enrolled'),
+                    'groups as active_groups_count' => fn ($query) => $query->whereNull('archived_at'),
+                    'lessons as active_lessons_count' => fn ($query) => $query->whereNull('archived_at'),
+                    'classSessions',
+                ])
+                ->latest()
+                ->get(),
             'courses' => Course::where('instructor_id', $r->user()->id)->whereNull('archived_at')->get(),
             'semesters' => Semester::where('instructor_id', $r->user()->id)->whereNull('archived_at')->get(),
         ]);
@@ -29,7 +39,18 @@ class OfferingController extends Controller
     public function show(CourseOffering $offering)
     {
         Gate::authorize('manage', $offering);
-        $offering->load(['course', 'semester', 'groups', 'lessons', 'enrollments.student.profile', 'enrollments.group', 'enrollments.transferRequests.group', 'invitations.group']);
+        $offering->load([
+            'course',
+            'semester',
+            'groups' => fn ($query) => $query->withCount([
+                'enrollments as active_enrollments_count' => fn ($enrollments) => $enrollments->where('status', 'enrolled'),
+            ]),
+            'lessons' => fn ($query) => $query->withCount('classSessions'),
+            'enrollments.student.profile',
+            'enrollments.group',
+            'enrollments.transferRequests.group',
+            'invitations.group',
+        ])->loadCount('classSessions');
 
         return view('instructor.offering', compact('offering'));
     }

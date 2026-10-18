@@ -3,9 +3,17 @@
 <section class="student-welcome-card">
     <div class="student-welcome-main">
         <div class="student-avatar"><x-icon name="graduation" :size="27" /></div>
-        <div><p class="student-kicker"><x-t k="welcome" /></p><h1>{{ auth()->user()->name }}</h1><p><x-t k="student_code" /> · <bdi>{{ auth()->user()->student_code }}</bdi></p></div>
+        <div>
+            <p class="student-kicker"><x-t k="welcome" /></p>
+            <h1>{{ auth()->user()->name }}</h1>
+            <p class="student-welcome-hint"><x-t k="student_hint" /></p>
+        </div>
     </div>
-    <time datetime="{{ now()->toDateString() }}">{{ now()->locale(app()->getLocale())->translatedFormat('l، j F') }}</time>
+    <div class="student-identity-pass">
+        <time datetime="{{ now()->toDateString() }}">{{ now()->locale(app()->getLocale())->translatedFormat('l، j F') }}</time>
+        <span><x-t k="student_code" /></span>
+        <strong><bdi>{{ auth()->user()->student_code }}</bdi></strong>
+    </div>
 </section>
 
 @if($enrollments->whereIn('payment_state', ['payment_required','payment_rejected','payment_revoked','payment_pending'])->isNotEmpty())
@@ -18,6 +26,15 @@
     <article><span><x-icon name="calendar" :size="20" /></span><div><strong>{{ $insights['upcoming_classes'] }}</strong><small><x-t k="upcoming_classes" /></small></div></article>
 </section>
 
+<nav class="student-quick-actions" aria-label="{{ __('ui.quick_actions') }}">
+    <a href="{{ route('student.courses') }}"><span><x-icon name="book" :size="20" /></span><div><strong><x-t k="browse_courses" /></strong><small><x-t k="courses_page_hint" /></small></div><x-icon name="arrow" :size="17" /></a>
+    <a href="{{ route('student.lectures') }}"><span><x-icon name="calendar" :size="20" /></span><div><strong><x-t k="my_lectures" /></strong><small><x-t k="upcoming_classes" /> · {{ $insights['upcoming_classes'] }}</small></div><x-icon name="arrow" :size="17" /></a>
+    <a href="{{ route('student.payments.index') }}"><span><x-icon name="wallet" :size="20" /></span><div><strong><x-t k="my_payments" /></strong><small><x-t k="course_access" /></small></div><x-icon name="arrow" :size="17" /></a>
+</nav>
+
+<div class="student-dashboard-focus">
+<div>
+
 @if($nextSession)
 <a class="next-class-card" href="{{ route('student.courses.show',$nextSession->offering) }}">
     <span class="next-class-date"><strong>{{ $nextSession->scheduled_start_at->timezone($nextSession->timezone)->format('d') }}</strong><small>{{ $nextSession->scheduled_start_at->timezone($nextSession->timezone)->locale(app()->getLocale())->translatedFormat('M') }}</small></span>
@@ -27,6 +44,7 @@
 @else
 <div class="student-no-next-class"><span><x-icon name="calendar" :size="22" /></span><div><strong><x-t k="schedule_clear" /></strong><small><x-t k="no_upcoming_class" /></small></div></div>
 @endif
+</div>
 
 <section class="student-action-card student-checkin-card">
     <div class="student-action-heading"><span><x-icon name="qr" :size="23" /></span><div><h2><x-t k="enter_class_code" /></h2><p><x-t k="class_code_hint" /></p></div></div>
@@ -35,6 +53,7 @@
         <button class="primary" :disabled="submitting"><span x-show="!submitting"><x-icon name="check" :size="18" /><x-t k="continue_checkin" /></span><span x-cloak x-show="submitting"><x-t k="please_wait" /></span></button>
     </form>
 </section>
+</div>
 
 <div class="student-section-heading"><div><p class="eyebrow"><x-t k="your_progress" /></p><h2><x-t k="my_courses" /></h2></div><a href="{{ route('student.courses') }}"><x-t k="view_all" /><x-icon name="arrow" :size="16" /></a></div>
 <div class="student-course-list">

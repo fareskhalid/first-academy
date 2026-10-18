@@ -36,6 +36,6 @@ docker compose run --rm --no-deps \
 docker compose run --rm --no-deps laravel.test npm run build
 docker compose up -d --wait laravel.test queue scheduler
 if [[ "${SKIP_SYSTEM_CHECK:-0}" != "1" ]]; then
-  docker compose exec -T laravel.test php artisan system:check --wait=75
+  docker compose exec -T --user sail laravel.test php artisan system:check --wait=75
 fi
-echo 'Setup complete. Create your instructor: docker compose exec laravel.test php artisan instructor:create'
+echo 'Setup complete. Create your instructor: docker compose exec --user sail laravel.test php artisan instructor:create'

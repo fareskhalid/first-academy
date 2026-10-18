@@ -6,6 +6,10 @@ use Illuminate\Database\Eloquent\Model;
 
 class PaymentProof extends Model
 {
+    public const CURRENCY = 'EGP';
+
+    public const METHOD = 'cash';
+
     protected $guarded = ['id'];
 
     protected function casts(): array

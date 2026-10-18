@@ -49,9 +49,7 @@ class ConcurrencyTest extends TestCase
             'file_size' => 100,
             'sha256' => hash('sha256', 'concurrent-proof'),
             'claimed_amount_minor' => 100000,
-            'currency' => 'EGP',
             'payment_date' => now()->toDateString(),
-            'payment_method' => 'Wallet',
             'status' => 'pending',
             'pending_slot' => 1,
         ]);

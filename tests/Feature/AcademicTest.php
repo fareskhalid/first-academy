@@ -25,7 +25,9 @@ class AcademicTest extends TestCase
         $this->signIn($teacher);
         $this->post('/instructor/setup/semesters', ['name' => 'Autumn', 'name_ar' => 'الخريف', 'starts_on' => '2026-09-01', 'ends_on' => '2027-01-31'])->assertRedirect();
         $this->post('/instructor/setup/courses', ['name' => 'Programming', 'name_ar' => 'البرمجة', 'code' => 'CS101', 'description' => 'Course', 'description_ar' => 'كورس'])->assertRedirect();
-        $this->post('/instructor/offerings', ['title' => 'Programming Autumn', 'title_ar' => 'برمجة الخريف', 'course_id' => 1, 'semester_id' => 1, 'uses_groups' => 1])->assertRedirect();
+        $courseId = \App\Models\Course::sole()->id;
+        $semesterId = \App\Models\Semester::sole()->id;
+        $this->post('/instructor/offerings', ['title' => 'Programming Autumn', 'title_ar' => 'برمجة الخريف', 'course_id' => $courseId, 'semester_id' => $semesterId, 'uses_groups' => 1])->assertRedirect();
         $offering = CourseOffering::sole();
         $this->assertSame('draft', $offering->status);
         foreach ([['Group A', 'المجموعة أ'], ['Group B', 'المجموعة ب']] as [$name, $nameAr]) {

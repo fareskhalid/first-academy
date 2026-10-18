@@ -4,7 +4,7 @@
 
 1. Copy or clone the project onto a machine with Docker and Compose.
 2. Run `bash scripts/setup.sh`. The script creates `.env` only when absent, builds PHP 8.5/Node 24, installs locked dependencies, creates the schema, compiles assets, starts the web/queue/scheduler services, and checks their heartbeats.
-3. Run `docker compose exec laravel.test php artisan instructor:create` to create the first controlled instructor account.
+3. Run `docker compose exec --user sail laravel.test php artisan instructor:create` to create the first controlled instructor account.
 4. Open `http://localhost:8088`. Students create their own regular accounts and then sign in.
 
 The bootstrap never runs a destructive reset and never seeds accounts automatically. Re-running it keeps the application key, schema data, Redis data, and private files. PHP, Laravel, and MySQL sessions use `Africa/Cairo`; absolute class times remain consistent across Cairo daylight-saving changes.
@@ -28,14 +28,14 @@ Named volumes preserve MySQL, Redis, and `storage/app/private` through stop/star
 bash scripts/test.sh
 docker compose exec laravel.test vendor/bin/pint --test
 bash scripts/browser-test.sh
-docker compose exec laravel.test php artisan system:check
+docker compose exec --user sail laravel.test php artisan system:check
 ```
 
 The browser suite covers mobile Chromium, mobile WebKit, and desktop Chromium in English and Arabic. Emulation verifies responsive flows; a physical Android/iPhone check is still required before a classroom pilot.
 
 ## Recovery and lifecycle
 
-An instructor can issue a one-hour temporary password from an enrolled student's roster. A trusted operator can also run `docker compose exec laravel.test php artisan account:reset IDENTIFIER`. Both require a reason, increment the session version, and force a password change. Students cannot recover accounts through email, SMS, or WhatsApp.
+An instructor can issue a one-hour temporary password from an enrolled student's roster. A trusted operator can also run `docker compose exec --user sail laravel.test php artisan account:reset IDENTIFIER`. Both require a reason, increment the session version, and force a password change. Students cannot recover accounts through email, SMS, or WhatsApp.
 
 Use `docker compose stop` for normal shutdown. Volume deletion is intentionally absent from project scripts. Backups and public deployment are outside the local Docker configuration.
 

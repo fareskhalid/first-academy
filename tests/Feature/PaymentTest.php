@@ -27,7 +27,11 @@ class PaymentTest extends TestCase
         $enrollment = $this->enroll($offering, $student);
         $this->instructions($offering);
 
-        $this->signIn($student)->post(route('student.payments.store', $enrollment), $this->proofPayload())
+        $this->signIn($student)->post(route('student.payments.store', $enrollment), $this->proofPayload([
+            'currency' => 'USD',
+            'payment_method' => 'card',
+            'payment_reference' => 'FORGED-REFERENCE',
+        ]))
             ->assertRedirect(route('student.payments.index'))
             ->assertSessionHasNoErrors();
 
@@ -35,8 +39,13 @@ class PaymentTest extends TestCase
         $this->assertSame('pending', $proof->status);
         $this->assertSame(1, $proof->pending_slot);
         $this->assertSame(125050, $proof->claimed_amount_minor);
+        $this->assertSame(PaymentProof::CURRENCY, $proof->currency);
+        $this->assertSame(PaymentProof::METHOD, $proof->payment_method);
+        $this->assertNull($proof->payment_reference);
         Storage::disk('local')->assertExists($proof->file_path);
-        $this->get(route('student.payments.index'))->assertOk()->assertSee('Proof under review');
+        $this->get(route('student.payments.index'))->assertOk()
+            ->assertSee('Proof under review')
+            ->assertSee(route('student.payments.index'), false);
         $this->get(route('payment-proofs.file', $proof))->assertOk()->assertHeader('Cache-Control', 'no-store, private');
         $this->signIn(User::factory()->create())->get(route('payment-proofs.file', $proof))->assertForbidden();
         $this->signIn(User::factory()->instructor()->create())->get(route('payment-proofs.file', $proof))->assertForbidden();
@@ -58,7 +67,7 @@ class PaymentTest extends TestCase
 
         $this->signIn($student)->post(route('student.payments.store', $firstEnrollment), $this->proofPayload())->assertRedirect();
         $proof = PaymentProof::sole();
-        $payload = ['decision' => 'approved', 'reason' => 'Matched external payment records.', 'confirmed_amount' => '1250.50', 'confirmed_currency' => 'EGP'];
+        $payload = ['decision' => 'approved', 'reason' => 'Matched external payment records.', 'confirmed_amount' => '1250.50', 'confirmed_currency' => 'USD'];
         $this->signIn($teacher)->post(route('instructor.payments.review', $proof), $payload)->assertRedirect()->assertSessionHasNoErrors();
         $this->post(route('instructor.payments.review', $proof), $payload)->assertRedirect()->assertSessionHasNoErrors();
 
@@ -66,6 +75,7 @@ class PaymentTest extends TestCase
         $this->assertDatabaseCount('course_entitlements', 1);
         $this->assertDatabaseCount('payment_reviews', 1);
         $this->assertSame(125050, $proof->fresh()->confirmed_amount_minor);
+        $this->assertSame(PaymentProof::CURRENCY, $proof->fresh()->confirmed_currency);
         $this->assertSame('entitlement', app(CourseAccess::class)->source($firstEnrollment, now()));
         $this->assertNull(app(CourseAccess::class)->source($secondEnrollment, now()));
     }
@@ -83,12 +93,12 @@ class PaymentTest extends TestCase
             'decision' => 'rejected', 'reason' => 'Reference could not be matched.',
         ])->assertRedirect();
 
-        $this->signIn($student)->post(route('student.payments.store', $enrollment), $this->proofPayload(['payment_reference' => 'REF-002']))->assertRedirect()->assertSessionHasNoErrors();
+        $this->signIn($student)->post(route('student.payments.store', $enrollment), $this->proofPayload())->assertRedirect()->assertSessionHasNoErrors();
         $second = PaymentProof::latest('id')->first();
         $this->assertSame($first->id, $second->supersedes_id);
         $this->assertSame('rejected', $first->fresh()->status);
         $this->assertSame('pending', $second->status);
-        $this->post(route('student.payments.store', $enrollment), $this->proofPayload(['payment_reference' => 'REF-003']))->assertSessionHasErrors('proof');
+        $this->post(route('student.payments.store', $enrollment), $this->proofPayload())->assertSessionHasErrors('proof');
         $this->assertDatabaseCount('payment_proofs', 2);
     }
 
@@ -101,7 +111,7 @@ class PaymentTest extends TestCase
         $this->consumeFreeAttendances($enrollment);
         $this->signIn($student)->post(route('student.payments.store', $enrollment), $this->proofPayload())->assertRedirect();
         $proof = PaymentProof::sole();
-        $this->signIn($offering->instructor)->post(route('instructor.payments.review', $proof), ['decision' => 'approved', 'reason' => 'Verified.', 'confirmed_amount' => '1250.50', 'confirmed_currency' => 'EGP'])->assertRedirect();
+        $this->signIn($offering->instructor)->post(route('instructor.payments.review', $proof), ['decision' => 'approved', 'reason' => 'Verified.', 'confirmed_amount' => '1250.50'])->assertRedirect();
         $this->assertSame('entitlement', app(CourseAccess::class)->source($enrollment, now()));
 
         $this->post(route('instructor.payments.revoke', $proof), ['reason' => 'External payment was reversed.'])->assertRedirect();
@@ -148,10 +158,7 @@ class PaymentTest extends TestCase
         return $overrides + [
             'proof' => UploadedFile::fake()->image('receipt.jpg', 600, 900),
             'claimed_amount' => '1250.50',
-            'currency' => 'EGP',
             'payment_date' => now()->toDateString(),
-            'payment_method' => 'Wallet transfer',
-            'payment_reference' => 'REF-001',
         ];
     }
 

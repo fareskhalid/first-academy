@@ -8,7 +8,7 @@ Prerequisites: Git, Docker Engine/Desktop, and Docker Compose. Host PHP, Node, M
 
 ```bash
 bash scripts/setup.sh
-docker compose exec laravel.test php artisan instructor:create
+docker compose exec --user sail laravel.test php artisan instructor:create
 ```
 
 Open <http://localhost:8088>. The instructor command asks for the password privately and does not place it in shell history.
@@ -16,7 +16,7 @@ Open <http://localhost:8088>. The instructor command asks for the password priva
 For optional synthetic courses with two groups:
 
 ```bash
-docker compose exec -e DEMO_PASSWORD='local-demo-password' laravel.test php artisan db:seed --class=DemoSeeder
+docker compose exec --user sail -e DEMO_PASSWORD='local-demo-password' laravel.test php artisan db:seed --class=DemoSeeder
 ```
 
 The demo instructor uses phone `01000000001` and the password supplied in the command. `DatabaseSeeder` remains empty and no historical-data import exists.

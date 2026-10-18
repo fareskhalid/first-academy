@@ -36,12 +36,7 @@ class PaymentController extends Controller
         $proofs = (clone $base)->with(['enrollment.student', 'enrollment.offering', 'reviewer'])->latest()->paginate(20)->withQueryString();
 
         foreach ($proofs->getCollection() as $proof) {
-            $duplicates = $this->ownedProofs($request)->whereKeyNot($proof->id)->where(function ($query) use ($proof) {
-                $query->where('sha256', $proof->sha256);
-                if ($proof->payment_reference) {
-                    $query->orWhere('payment_reference', $proof->payment_reference);
-                }
-            })->exists();
+            $duplicates = $this->ownedProofs($request)->whereKeyNot($proof->id)->where('sha256', $proof->sha256)->exists();
             $proof->setAttribute('has_duplicate_warning', $duplicates);
         }
 
@@ -77,13 +72,11 @@ class PaymentController extends Controller
         Gate::authorize('manage', $proof);
         $request->merge([
             'confirmed_amount' => $this->normalizeNumber((string) $request->input('confirmed_amount')),
-            'confirmed_currency' => strtoupper((string) $request->input('confirmed_currency')),
         ]);
         $data = $request->validate([
             'decision' => ['required', Rule::in(['approved', 'rejected'])],
             'reason' => ['required', 'string', 'max:500'],
             'confirmed_amount' => ['nullable', 'required_if:decision,approved', 'regex:/^\d{1,10}(?:\.\d{1,2})?$/'],
-            'confirmed_currency' => ['nullable', 'required_if:decision,approved', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
         ]);
         $payments->review(
             $request->user(),
@@ -91,7 +84,6 @@ class PaymentController extends Controller
             $data['decision'],
             $data['reason'],
             $data['decision'] === 'approved' ? $this->minorUnits($data['confirmed_amount']) : null,
-            $data['decision'] === 'approved' ? $data['confirmed_currency'] : null,
         );
 
         return back()->with('status_key', 'payment_review_saved');
@@ -139,7 +131,7 @@ class PaymentController extends Controller
         return response()->streamDownload(function () use ($query) {
             $stream = fopen('php://output', 'w');
             fwrite($stream, "\xEF\xBB\xBF");
-            fputcsv($stream, [__('ui.student_code'), __('ui.student_name'), __('ui.course'), __('ui.status'), __('ui.claimed_amount'), __('ui.claimed_currency'), __('ui.confirmed_amount'), __('ui.confirmed_currency'), __('ui.payment_date'), __('ui.payment_method'), __('ui.payment_reference'), __('ui.reviewed_by'), __('ui.reviewed_at')]);
+            fputcsv($stream, [__('ui.student_code'), __('ui.student_name'), __('ui.course'), __('ui.status'), __('ui.claimed_amount_egp'), __('ui.confirmed_amount_egp'), __('ui.payment_date'), __('ui.reviewed_by'), __('ui.reviewed_at')]);
             $query->orderBy('id')->chunkById(200, function ($proofs) use ($stream) {
                 foreach ($proofs as $proof) {
                     fputcsv($stream, array_map([$this, 'csvValue'], [
@@ -148,12 +140,8 @@ class PaymentController extends Controller
                         $proof->enrollment->offering->display_title,
                         __('ui.'.$proof->status),
                         number_format($proof->claimed_amount_minor / 100, 2, '.', ''),
-                        $proof->currency,
                         $proof->confirmed_amount_minor === null ? null : number_format($proof->confirmed_amount_minor / 100, 2, '.', ''),
-                        $proof->confirmed_currency,
                         $proof->payment_date->format('Y-m-d'),
-                        $proof->payment_method,
-                        $proof->payment_reference,
                         $proof->reviewer?->name,
                         $proof->reviewed_at?->timezone(config('academic.timezone'))->format('Y-m-d h:i A'),
                     ]));

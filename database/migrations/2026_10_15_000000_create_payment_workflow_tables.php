@@ -30,11 +30,11 @@ return new class extends Migration
             $table->unsignedBigInteger('file_size');
             $table->char('sha256', 64)->index();
             $table->unsignedBigInteger('claimed_amount_minor');
-            $table->char('currency', 3);
+            $table->char('currency', 3)->default('EGP');
             $table->unsignedBigInteger('confirmed_amount_minor')->nullable();
             $table->char('confirmed_currency', 3)->nullable();
             $table->date('payment_date');
-            $table->string('payment_method', 100);
+            $table->string('payment_method', 100)->default('cash');
             $table->string('payment_reference', 160)->nullable()->index();
             $table->string('status', 20)->default('pending');
             // Terminal rows set this to null. MySQL and SQLite then allow retained history.

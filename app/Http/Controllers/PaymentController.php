@@ -37,23 +37,16 @@ class PaymentController extends Controller
         Gate::authorize('view', $enrollment);
         $request->merge([
             'claimed_amount' => $this->normalizeNumber((string) $request->input('claimed_amount')),
-            'currency' => strtoupper((string) $request->input('currency')),
         ]);
         $data = $request->validate([
             'proof' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf', 'mimetypes:image/jpeg,image/png,application/pdf'],
             'claimed_amount' => ['required', 'regex:/^\d{1,10}(?:\.\d{1,2})?$/'],
-            'currency' => ['required', 'string', 'size:3', 'regex:/^[A-Z]{3}$/'],
             'payment_date' => ['required', 'date', 'before_or_equal:today'],
-            'payment_method' => ['required', 'string', 'max:100'],
-            'payment_reference' => ['nullable', 'string', 'max:160'],
         ]);
 
         $payments->submit($request->user(), $enrollment, $request->file('proof'), [
             'claimed_amount_minor' => $this->minorUnits($data['claimed_amount']),
-            'currency' => $data['currency'],
             'payment_date' => $data['payment_date'],
-            'payment_method' => $data['payment_method'],
-            'payment_reference' => $data['payment_reference'] ?? null,
         ]);
 
         return redirect()->route('student.payments.index')->with('status_key', 'payment_proof_submitted');

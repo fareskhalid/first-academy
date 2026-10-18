@@ -16,5 +16,5 @@ if (preg_match("/^APP_KEY=\s*$/m",$s)) file_put_contents($p,preg_replace("/^APP_
 "${compose[@]}" up -d --wait mysql redis
 "${compose[@]}" run --rm --no-deps laravel.test php artisan migrate --force
 "${compose[@]}" up -d --wait laravel.test queue scheduler tls
-"${compose[@]}" exec -T laravel.test php artisan system:check --wait=75
+"${compose[@]}" exec -T --user sail laravel.test php artisan system:check --wait=75
 echo 'Local HTTPS staging ready: https://localhost:8448 (self-signed development certificate).'

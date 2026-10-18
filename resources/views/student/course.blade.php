@@ -5,6 +5,12 @@
     <div class="student-course-header-copy"><span><x-icon name="book" :size="24" /></span><div><p>{{ $offering->semester->display_name }} · {{ $offering->course->code }}</p><h1>{{ $offering->display_title }}</h1><small>{{ $offering->instructor->name }}</small></div></div>
 </header>
 
+<nav class="student-course-jump" aria-label="{{ __('ui.quick_actions') }}">
+    <a href="#course-schedule"><x-icon name="calendar" :size="18" /><x-t k="class_schedule" /></a>
+    <a href="#attendance-history"><x-icon name="check" :size="18" /><x-t k="attendance_history" /></a>
+    <a href="{{ route('student.payments.index') }}#enrollment-{{ $enrollment->id }}"><x-icon name="wallet" :size="18" /><x-t k="my_payments" /></a>
+</nav>
+
 <section class="student-course-insights" aria-label="{{ __('ui.course_overview') }}">
     <article><span><x-t k="group" /></span><strong>{{ $enrollment->group?->display_name }}</strong></article>
     <article><span><x-t k="attendance_rate" /></span><strong>{{ $attendanceRate === null ? '—' : $attendanceRate.'%' }}</strong></article>
@@ -57,7 +63,7 @@
 @foreach($enrollment->transferRequests as $transfer)<p class="muted">{{ $transfer->group->display_name }} · <x-status :value="$transfer->status" /></p>@endforeach
 </details></section>
 
-<section class="student-content-section"><div class="student-section-heading"><div><p class="eyebrow"><x-t k="your_progress" /></p><h2><x-t k="attendance_history" /></h2></div></div>
+<section class="student-content-section" id="attendance-history"><div class="student-section-heading"><div><p class="eyebrow"><x-t k="your_progress" /></p><h2><x-t k="attendance_history" /></h2></div></div>
 <div class="student-attendance-list">@forelse($enrollment->attendances as $attendance)<div><span class="student-attendance-dot status-{{ $attendance->status }}"><x-icon name="check" :size="15" /></span><span><strong>{{ $attendance->lesson->display_title }}</strong><small>{{ $attendance->session->scheduled_start_at->timezone($offering->timezone)->locale(app()->getLocale())->translatedFormat('j F Y') }}</small></span><x-status :value="$attendance->status" /></div>@empty<div class="student-empty-state"><span><x-icon name="clipboard" :size="26" /></span><strong><x-t k="no_attendance" /></strong></div>@endforelse</div>
 </section>
 </div>

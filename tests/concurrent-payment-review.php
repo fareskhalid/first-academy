@@ -22,5 +22,4 @@ app(PaymentWorkflow::class)->review(
     'approved',
     'Concurrent verification.',
     100000,
-    'EGP',
 );

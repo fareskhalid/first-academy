@@ -23,7 +23,13 @@ class PaymentWorkflow
     public function submit(User $student, Enrollment $enrollment, UploadedFile $file, array $data): PaymentProof
     {
         abort_unless($enrollment->student_id === $student->id, 403);
-        $path = $file->store('payment-proofs/'.$enrollment->id, 'local');
+        try {
+            $path = $file->store('payment-proofs/'.$enrollment->id, 'local');
+        } catch (Throwable $exception) {
+            report($exception);
+
+            throw ValidationException::withMessages(['proof' => __('ui.payment_upload_failed')]);
+        }
         if (! $path) {
             throw ValidationException::withMessages(['proof' => __('ui.payment_upload_failed')]);
         }
@@ -39,7 +45,12 @@ class PaymentWorkflow
                 }
 
                 $previous = $enrollment->paymentProofs()->whereIn('status', ['rejected', 'revoked'])->first();
-                $proof = $enrollment->paymentProofs()->create($data + [
+                $proof = $enrollment->paymentProofs()->create([
+                    'claimed_amount_minor' => $data['claimed_amount_minor'],
+                    'currency' => PaymentProof::CURRENCY,
+                    'payment_date' => $data['payment_date'],
+                    'payment_method' => PaymentProof::METHOD,
+                    'payment_reference' => null,
                     'supersedes_id' => $previous?->id,
                     'file_disk' => 'local',
                     'file_path' => $path,
@@ -72,9 +83,9 @@ class PaymentWorkflow
         }
     }
 
-    public function review(User $instructor, PaymentProof $proof, string $decision, string $reason, ?int $confirmedAmountMinor = null, ?string $confirmedCurrency = null): PaymentProof
+    public function review(User $instructor, PaymentProof $proof, string $decision, string $reason, ?int $confirmedAmountMinor = null): PaymentProof
     {
-        return DB::transaction(function () use ($instructor, $proof, $decision, $reason, $confirmedAmountMinor, $confirmedCurrency) {
+        return DB::transaction(function () use ($instructor, $proof, $decision, $reason, $confirmedAmountMinor) {
             $proof = PaymentProof::with(['enrollment.offering.semester', 'enrollment.student'])->lockForUpdate()->findOrFail($proof->id);
             abort_unless($proof->enrollment->offering->instructor_id === $instructor->id, 403);
 
@@ -92,13 +103,13 @@ class PaymentWorkflow
                 'reviewed_at' => now(),
                 'review_reason' => $reason,
                 'confirmed_amount_minor' => $decision === 'approved' ? $confirmedAmountMinor : null,
-                'confirmed_currency' => $decision === 'approved' ? $confirmedCurrency : null,
+                'confirmed_currency' => $decision === 'approved' ? PaymentProof::CURRENCY : null,
             ]);
             $proof->reviews()->create([
                 'reviewer_id' => $instructor->id,
                 'decision' => $decision,
                 'confirmed_amount_minor' => $decision === 'approved' ? $confirmedAmountMinor : null,
-                'confirmed_currency' => $decision === 'approved' ? $confirmedCurrency : null,
+                'confirmed_currency' => $decision === 'approved' ? PaymentProof::CURRENCY : null,
                 'reason' => $reason,
             ]);
 

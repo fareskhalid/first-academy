@@ -43,16 +43,14 @@
         <article class="payment-review-card {{ $proof->status !== 'pending' ? 'is-reviewed' : '' }}">
             <header><div class="payment-student"><span>{{ mb_substr($proof->enrollment->student->name, 0, 1) }}</span><div><h2>{{ $proof->enrollment->student->name }}</h2><p><bdi>{{ $proof->enrollment->student->student_code }}</bdi> · {{ $proof->enrollment->offering->display_title }}</p></div></div><x-status :value="$proof->status" /></header>
             <div class="payment-proof-details">
-                <div><small><x-t k="claimed_amount" /></small><strong>{{ number_format($proof->claimed_amount_minor / 100, 2) }} {{ $proof->currency }}</strong></div>
+                <div><small><x-t k="claimed_amount_egp" /></small><strong>{{ number_format($proof->claimed_amount_minor / 100, 2) }} EGP</strong></div>
                 <div><small><x-t k="payment_date" /></small><strong>{{ $proof->payment_date->locale(app()->getLocale())->translatedFormat('j F Y') }}</strong></div>
-                <div><small><x-t k="payment_method" /></small><strong>{{ $proof->payment_method }}</strong></div>
-                <div><small><x-t k="payment_reference" /></small><strong>{{ $proof->payment_reference ?: '—' }}</strong></div>
             </div>
             @if($proof->has_duplicate_warning)<div class="payment-warning"><x-icon name="warning" :size="17" /><x-t k="duplicate_payment_warning" /></div>@endif
             <div class="payment-review-meta"><span><x-t k="submitted_at" /> · {{ $proof->created_at->timezone(config('academic.timezone'))->locale(app()->getLocale())->translatedFormat('j F Y, h:i A') }}</span><a class="button secondary" target="_blank" rel="noopener" href="{{ route('payment-proofs.file', $proof) }}"><x-icon name="download" :size="17" /><x-t k="inspect_proof" /></a></div>
             @if($proof->status === 'pending')
                 <form method="POST" action="{{ route('instructor.payments.review', $proof) }}" class="payment-review-form" x-data="{ submitting: false }" @submit="submitting = true">@csrf
-                    <div class="payment-confirm-fields"><x-field name="confirmed_amount" :id="'confirmed-amount-'.$proof->id" label="confirmed_amount" :value="number_format($proof->claimed_amount_minor / 100, 2, '.', '')" inputmode="decimal" pattern="[0-9٠-٩۰-۹]+([.,٫][0-9٠-٩۰-۹]{1,2})?" maxlength="13" /><x-field name="confirmed_currency" :id="'confirmed-currency-'.$proof->id" label="confirmed_currency" :value="$proof->currency" minlength="3" maxlength="3" dir="ltr" /></div>
+                    <x-field name="confirmed_amount" :id="'confirmed-amount-'.$proof->id" label="confirmed_amount_egp" :value="number_format($proof->claimed_amount_minor / 100, 2, '.', '')" inputmode="decimal" pattern="[0-9٠-٩۰-۹]+([.,٫][0-9٠-٩۰-۹]{1,2})?" maxlength="13" />
                     <x-field name="reason" :id="'review-reason-'.$proof->id" label="review_reason" required maxlength="500" />
                     <div><button class="primary" name="decision" value="approved" :disabled="submitting"><x-icon name="check" :size="17" /><x-t k="approve" /></button><button class="danger" name="decision" value="rejected" :disabled="submitting"><x-icon name="close" :size="17" /><x-t k="reject" /></button></div>
                 </form>
