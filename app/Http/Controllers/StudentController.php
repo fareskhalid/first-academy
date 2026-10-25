@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Actions\Academics\EnrollmentManager;
 use App\Contracts\CourseAccess;
 use App\Models\ClassSession;
+use App\Models\CourseMaterial;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
 use App\Models\EnrollmentInvitation;
@@ -109,8 +110,19 @@ class StudentController extends Controller
         $attendanceTotal = $attendanceRecorded + $absenceCount;
         $attendanceRate = $attendanceTotal > 0 ? (int) round(($attendanceRecorded / $attendanceTotal) * 100) : null;
         $nextSession = $sessions->first(fn ($session) => $session->scheduled_start_at->isFuture());
+        $materials = collect();
+        if ($enrollment->status === 'enrolled') {
+            $materials = CourseMaterial::query()
+                ->published()
+                ->where('course_offering_id', $offering->id)
+                ->whereHas('groups', fn (Builder $query) => $query->where('groups.id', $enrollment->group_id))
+                ->with(['lesson', 'groups'])
+                ->orderBy('position')
+                ->orderBy('id')
+                ->get();
+        }
 
-        return view('student.course', compact('offering', 'enrollment', 'sessions', 'attendedCount', 'remainingFree', 'accessSource', 'paymentState', 'latestProof', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
+        return view('student.course', compact('offering', 'enrollment', 'sessions', 'materials', 'attendedCount', 'remainingFree', 'accessSource', 'paymentState', 'latestProof', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
     }
 
     public function transfer(Request $r, Enrollment $enrollment, EnrollmentManager $manager)

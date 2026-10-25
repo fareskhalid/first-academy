@@ -26,13 +26,15 @@ class NoticesTest extends TestCase
         (new DeliverNotice($event->id))->handle();
         $this->assertDatabaseCount('notifications', 1);
         $this->assertNotNull($event->fresh()->delivered_at);
+        $this->signIn($user)->get('/notifications')->assertOk()->assertSee('nav-unread-dot', false);
         Livewire::actingAs($other)->test(NotificationCenter::class)->call('markRead', $event->id)->assertNotFound();
-        Livewire::actingAs($user)->test(NotificationCenter::class)->assertSee($user->name)->call('markRead', $event->id);
+        Livewire::actingAs($user)->test(NotificationCenter::class)->assertSee($user->name)->call('markRead', $event->id)->assertDispatched('notification-count-updated');
         $this->assertNotNull($user->notifications()->sole()->read_at);
+        $this->get('/notifications')->assertOk()->assertDontSee('nav-unread-dot', false);
 
         $secondEvent = NotificationEvent::create(['id' => (string) Str::uuid(), 'user_id' => $user->id, 'message_key' => 'notice_welcome', 'parameters' => ['name' => $user->name], 'url' => '/dashboard']);
         (new DeliverNotice($secondEvent->id))->handle();
-        Livewire::actingAs($user)->test(NotificationCenter::class)->assertSee('1')->call('markAllRead');
+        Livewire::actingAs($user)->test(NotificationCenter::class)->set('filter', 'unread')->assertSee($user->name)->assertSee('1')->call('markAllRead')->assertDispatched('notification-count-updated');
         $this->assertSame(0, $user->unreadNotifications()->count());
     }
 

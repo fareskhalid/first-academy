@@ -13,6 +13,7 @@
 @php($links = auth()->user()->isInstructor()
     ? ['dashboard'=>['dashboard','home'],'instructor.schedule'=>['schedule','calendar'],'instructor.lectures'=>['lectures','book'],'instructor.students'=>['students','users'],'instructor.payments.index'=>['payments','wallet'],'instructor.setup'=>['setup','settings'],'instructor.offerings'=>['offerings','graduation'],'notifications'=>['notifications','bell'],'instructor.audit'=>['audit','clipboard'],'profile'=>['profile','user']]
     : ['dashboard'=>['my_courses','home'],'student.courses'=>['browse_courses','book'],'student.lectures'=>['my_lectures','calendar'],'student.payments.index'=>['my_payments','wallet'],'notifications'=>['notifications','bell'],'profile'=>['profile','user']])
+@php($hasUnreadNotifications = auth()->user()->unreadNotifications()->exists())
 @endauth
 <a class="skip" href="#main"><x-t k="skip" /></a>
 <header class="topbar">
@@ -26,13 +27,13 @@
     </div>
     @auth @if(auth()->user()->isInstructor())
     <nav class="nav" aria-label="{{ __('ui.app_name') }}">
-        @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><x-icon :name="$icon" :size="19" /><x-t :k="$key" /></a>@endforeach
+        @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><span class="nav-icon"><x-icon :name="$icon" :size="19" />@if($route === 'notifications' && $hasUnreadNotifications)<span class="nav-unread-dot" x-data="{ visible: true }" x-show="visible" x-on:notification-count-updated.window="visible = Number($event.detail.count) > 0" aria-hidden="true"></span>@endif</span><x-t :k="$key" /></a>@endforeach
     </nav>
     @endif @endauth
 </header>
 @auth @if(!auth()->user()->isInstructor())
 <nav class="nav student-bottom-nav" aria-label="{{ __('ui.app_name') }}">
-    @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" aria-label="{{ __('ui.'.$key) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><x-icon :name="$icon" :size="19" /><x-t class="student-nav-label" :k="$key" /></a>@endforeach
+    @foreach($links as $route => [$key,$icon])<a href="{{ route($route) }}" aria-label="{{ __('ui.'.$key) }}" @if(request()->routeIs($route, $route.'.*')) aria-current="page" @endif><span class="nav-icon"><x-icon :name="$icon" :size="19" />@if($route === 'notifications' && $hasUnreadNotifications)<span class="nav-unread-dot" x-data="{ visible: true }" x-show="visible" x-on:notification-count-updated.window="visible = Number($event.detail.count) > 0" aria-hidden="true"></span>@endif</span><x-t class="student-nav-label" :k="$key" /></a>@endforeach
 </nav>
 @endif @endauth
 <div class="app-toast-region" data-toast-region aria-live="polite" aria-relevant="additions">

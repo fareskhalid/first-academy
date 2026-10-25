@@ -31,4 +31,9 @@ class Lesson extends Model
     {
         return $this->hasMany(Attendance::class);
     }
+
+    public function materials()
+    {
+        return $this->hasMany(CourseMaterial::class);
+    }
 }

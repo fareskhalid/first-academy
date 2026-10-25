@@ -2,7 +2,9 @@
 
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CourseMaterialController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Instructor\CourseMaterialController as InstructorCourseMaterialController;
 use App\Http\Controllers\Instructor\EnrollmentController;
 use App\Http\Controllers\Instructor\OfferingController;
 use App\Http\Controllers\Instructor\PaymentController as InstructorPaymentController;
@@ -37,6 +39,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/student/payments', [PaymentController::class, 'index'])->name('student.payments.index');
     Route::post('/student/enrollments/{enrollment}/payment-proofs', [PaymentController::class, 'store'])->name('student.payments.store');
     Route::get('/payment-proofs/{proof}/file', [PaymentController::class, 'file'])->name('payment-proofs.file');
+    Route::get('/course-materials/{material}/file', [CourseMaterialController::class, 'file'])->name('course-materials.file');
     Route::get('/student/courses/{offering}', [StudentController::class, 'show'])->name('student.courses.show');
     Route::post('/student/enrollments/{enrollment}/transfer', [StudentController::class, 'transfer'])->name('student.transfer');
     Route::post('/invitations/{token}', [StudentController::class, 'invitationAccept'])->name('invitations.accept');
@@ -63,6 +66,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/offerings/{offering}/lessons', [OfferingController::class, 'lesson'])->name('lessons.store');
         Route::put('/offerings/{offering}/lessons/{lesson}', [OfferingController::class, 'lesson'])->name('lessons.update');
         Route::post('/offerings/{offering}/{kind}/{id}/archive', [OfferingController::class, 'archiveChild'])->whereIn('kind', ['groups', 'lessons'])->name('children.archive');
+        Route::post('/offerings/{offering}/materials', [InstructorCourseMaterialController::class, 'store'])->name('materials.store');
+        Route::put('/offerings/{offering}/materials/{material}', [InstructorCourseMaterialController::class, 'update'])->name('materials.update');
+        Route::post('/offerings/{offering}/materials/{material}/archive', [InstructorCourseMaterialController::class, 'archive'])->name('materials.archive');
         Route::post('/offerings/{offering}/enrollments', [EnrollmentController::class, 'store'])->name('enrollments.store');
         Route::put('/enrollments/{enrollment}', [EnrollmentController::class, 'update'])->name('enrollments.update');
         Route::post('/enrollments/{enrollment}/account', [EnrollmentController::class, 'account'])->name('enrollments.account');

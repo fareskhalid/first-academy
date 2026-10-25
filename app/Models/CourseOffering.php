@@ -62,6 +62,11 @@ class CourseOffering extends Model
         return $this->hasMany(ClassSession::class);
     }
 
+    public function materials()
+    {
+        return $this->hasMany(CourseMaterial::class)->orderBy('position')->orderBy('id');
+    }
+
     public function paymentInstruction()
     {
         return $this->hasOne(PaymentInstruction::class);

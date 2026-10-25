@@ -171,6 +171,59 @@
             </div>
         </section>
 
+        <section id="course-materials" class="offering-section-block" aria-labelledby="course-materials-title">
+            <div class="offering-section-heading">
+                <span><x-icon name="files" :size="20" /></span>
+                <div><h2 id="course-materials-title"><x-t k="course_materials" /></h2><p><x-t k="materials_management_hint" /></p></div>
+                <strong>{{ $offering->materials->where('status', 'published')->count() }}</strong>
+            </div>
+
+            <div class="material-management-layout">
+                <article class="panel material-library-card">
+                    <header class="material-library-summary">
+                        <div><strong><x-t k="material_library" /></strong><small>{{ $offering->materials->count() }} <x-t k="materials" /></small></div>
+                    </header>
+                    <div class="material-manage-list">
+                        @forelse($offering->materials as $material)
+                            <details class="material-manage-card" data-status="{{ $material->status }}">
+                                <summary>
+                                    <span class="material-type-icon"><x-icon :name="$material->type === 'youtube' ? 'play' : ($material->type === 'image' ? 'image' : 'file')" :size="20" /></span>
+                                    <span class="material-manage-copy">
+                                        <strong>{{ $material->display_title }}</strong>
+                                        <small><x-t :k="$material->type" /> · {{ $material->groups->pluck('display_name')->join('، ') }}</small>
+                                    </span>
+                                    <x-status :value="$material->status" />
+                                </summary>
+                                <div class="material-manage-details">
+                                    @if($material->display_description)<p>{{ $material->display_description }}</p>@endif
+                                    @if($material->lesson)<div class="material-lesson-tag"><x-icon name="clipboard" :size="14" />{{ $material->lesson->display_title }}</div>@endif
+                                    @if($material->type !== 'youtube' && $material->file_path)
+                                        <a class="button secondary" href="{{ route('course-materials.file', $material) }}" target="_blank" rel="noopener"><x-icon name="view" :size="16" /><x-t k="open_file" /></a>
+                                    @endif
+                                    @if($material->status !== 'archived' && $offering->status !== 'archived')
+                                        @include('instructor.partials.material-form', ['material' => $material])
+                                        <form method="POST" action="{{ route('instructor.materials.archive', [$offering, $material]) }}" @submit="if (!confirm($store.i18n.t('confirm_archive'))) $event.preventDefault()">
+                                            @csrf
+                                            <button class="danger"><x-icon name="close" :size="16" /><x-t k="archive" /></button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </details>
+                        @empty
+                            <div class="offering-list-empty"><x-icon name="files" :size="24" /><span><x-t k="no_materials" /></span></div>
+                        @endforelse
+                    </div>
+                </article>
+
+                @if($offering->status !== 'archived')
+                    <details class="panel material-create-card" open>
+                        <summary><span><x-icon name="plus" :size="18" /></span><div><strong><x-t k="add_material" /></strong><small><x-t k="add_material_hint" /></small></div></summary>
+                        @include('instructor.partials.material-form', ['material' => null])
+                    </details>
+                @endif
+            </div>
+        </section>
+
         @if($offering->status === 'open')
             <section class="offering-section-block" aria-labelledby="enrollment-tools-title">
                 <div class="offering-section-heading">

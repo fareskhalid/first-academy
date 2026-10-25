@@ -76,5 +76,20 @@
         @case('warning')
             <path d="M10.3 3.7 2.6 17a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" />
             @break
+        @case('file')
+            <path d="M6 2h8l4 4v16H6Z" /><path d="M14 2v5h5M9 13h6M9 17h6" />
+            @break
+        @case('files')
+            <path d="M5 4h9l4 4v13H5Z" /><path d="M14 4v5h5M9 13h5M9 17h5M3 17H2V2h12v2" />
+            @break
+        @case('image')
+            <rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="2" /><path d="m21 15-5-5L5 20" />
+            @break
+        @case('play')
+            <circle cx="12" cy="12" r="9" /><path d="m10 8 6 4-6 4Z" />
+            @break
+        @case('view')
+            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" /><circle cx="12" cy="12" r="2.5" />
+            @break
     @endswitch
 </svg>

@@ -8,7 +8,7 @@
 
 **Confirmed updates:** the week starts Saturday; both English and Arabic are supported; students sign in with an Egyptian phone number or student code and password. Registration asks only for name, phone, password, and password confirmation; the login phone becomes the initial WhatsApp contact. No email or phone ownership verification is required. Students may register a regular account, then sign in; there are no guest accounts, guest attendance, or unauthenticated course actions. The application stores no course fee, and students see only offerings in which they are already enrolled through an instructor or invitation.
 
-This document specifies the full product. Sprints 1 and 2 are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual weekly scheduling, authenticated rotating QR attendance, personal free-attendance counting, roster finalization, and audited corrections. Sections 5.5–5.7 remain the implementation plan for Sprints 3–5. The application is deployed on Serv00; automated Sprint 2 acceptance runs, physical-device acceptance, backup rehearsal, and production capacity validation still require separate execution.
+This document specifies the full product. Sprints 1–3 and the Sprint 6 course-material feature are implemented in this workspace with locked PHP and frontend dependencies, MySQL migrations, Docker services, bilingual academic/payment/material screens, authenticated rotating QR attendance, personal free-attendance counting, private uploads, group-scoped materials, embedded YouTube videos, roster finalization, and audited corrections. Sections 5.6–5.7 remain the implementation plan for Sprints 4–5. The application is deployed on Serv00; physical-device acceptance, backup rehearsal, production migration, and production capacity validation still require separate execution.
 
 **Project setup:** Docker Compose with Laravel Sail-compatible images is the implemented local environment, with container-based CI checks. Serv00 PHP shared hosting is the production profile. Section 3.7 defines both environments and their acceptance criteria.
 
@@ -47,7 +47,7 @@ Initial ownership is one instructor or one teaching business. Additional instruc
 1. Online payment gateways, installments, refund processing, and accounting integration.
 2. Native iOS/Android apps, offline attendance submission, and offline tests.
 3. Automated programming-code execution, plagiarism detection, and remote exam proctoring.
-4. Parent accounts, certificates, advanced learning analytics, and a full course-material library.
+4. Parent accounts, certificates, and advanced learning analytics.
 5. Automated SMS/WhatsApp/email delivery, push notifications, and a multi-organization subscription platform. Recording the required WhatsApp contact number is included; messaging integration is deferred.
 
 Text-based coding questions may be answered and manually graded in the first release. Executing student code requires a separate isolated execution service and a separately estimated scope.
@@ -191,6 +191,18 @@ No bank credentials, national identity documents, or unrelated demographic data 
 An offering is `draft`, `open`, `completed`, or `archived`. An enrollment is `enrolled`, `withdrawn`, or `completed`; its payment access is calculated separately. Restoring a withdrawn enrollment retains its original ID and history. New attendance and test starts require an open offering. Do not complete/archive an offering while sessions or attempts remain active; resolve them first. Released history stays available to its owners.
 
 Before classes exist, changing an offering's group structure is allowed. Once attendance exists, group deletion becomes archival. A transfer that would overlap another active membership is rejected. Students request a transfer; only the instructor approves it in the first release.
+
+#### 2.3.1 Course materials
+
+| ID | Requirement | Acceptance criteria |
+| --- | --- | --- |
+| FR-MT-01 | Let an instructor manage bilingual PDF, picture, and YouTube materials inside an offering. | Every material has English/Arabic titles, optional descriptions and lesson, an explicit order, and `draft`, `published`, or `archived` status. Uploaded files stay private. |
+| FR-MT-02 | Assign one material to one or more groups without duplicating it. | At least one active group from the same offering is required. One material record and file/video ID may be shared by several groups; another offering's group is rejected. |
+| FR-MT-03 | Show students only published materials assigned to their current group. | An active enrolled student sees the material after publication. A student in another group, a withdrawn student, or a signed-out visitor cannot view its private file. A transfer applies the new group's access immediately. |
+| FR-MT-04 | Play approved YouTube videos inside the student course screen. | Accept supported HTTPS YouTube URLs, store the canonical video ID, and render a responsive privacy-enhanced YouTube embed. Never store or render instructor-supplied iframe HTML. |
+| FR-MT-05 | Notify only newly eligible students when material is published or shared with another group. | Publication targets active enrollments in assigned groups. Adding a group to an already published material notifies that group's students once; ordinary edits do not create duplicate notices. |
+
+PDF files are limited to 25 MB. JPEG, PNG, and WebP pictures are limited to 10 MB. Files use randomized paths under private storage and are served only through an authorized response with restrictive content headers. Archiving immediately removes student access while retaining the file and audit history. YouTube videos are hosted on the academy's channel and embedded through `youtube-nocookie.com`; public or unlisted YouTube URLs may still be shared outside the platform, so application authorization protects the course screen rather than the underlying YouTube URL.
 
 ### 2.4 Weekly class scheduling
 
@@ -558,6 +570,8 @@ Absence finalization uses roster obligations grouped by enrollment/lesson, so an
 | `course_entitlements` | Enrollment, source proof or instructor waiver, valid-from/until, revocation details | Scope to one enrollment; overlapping grants must not duplicate access periods. |
 | `access_waivers` | Enrollment, covered actions, start/end, reason, issuing instructor | Expiry is checked on every new protected action, even if cleanup has not run. |
 | `stored_files` | Owner/context, storage key, content type, size, retention date | Private by default; only validated supported files can be previewed/downloaded by an authorized actor. |
+| `course_materials` | Offering, optional lesson, uploader, bilingual title/description, type/status/order, private file metadata or canonical YouTube video ID | Published materials are read-only to students; archive revokes access without deleting audit history. |
+| `course_material_group` | Material and group | Unique material/group pair; both records belong to the same offering and at least one group is required. |
 
 #### Assessments
 
@@ -825,9 +839,9 @@ Production smoke checks must prove HTTPS, both student login identifiers, unauth
 
 ### 5.1 Estimation basis and priorities
 
-The proposed plan contains **five two-week sprints: ten calendar weeks**. This assumes two experienced Laravel developers, a tester available roughly half time, instructor-supplied/reviewed Arabic wording, and the instructor available for two hours of review per week. English and Arabic implementation/testing are included in every sprint. These are planning estimates, not a fixed-price commitment or measured team velocity; re-estimate the expanded bilingual work after the Sprint 1 prototype.
+The expanded plan contains **six two-week sprints: twelve calendar weeks**. This assumes two experienced Laravel developers, a tester available roughly half time, instructor-supplied/reviewed Arabic wording, and the instructor available for two hours of review per week. English and Arabic implementation/testing are included in every sprint. These are planning estimates, not a fixed-price commitment or measured team velocity; re-estimate the expanded bilingual work after the Sprint 1 prototype.
 
-For one experienced developer with part-time testing support, allow approximately **15–20 calendar weeks** for the same scope. Re-estimate after Sprint 1 using the actual team, prototypes, deployment constraints, and resolved decisions. Reserve up to two additional calendar weeks for dependency, device, or acceptance issues if the launch date permits; that reserve is not additional planned feature scope.
+For one experienced developer with part-time testing support, allow approximately **18–24 calendar weeks** for the same scope. Re-estimate after Sprint 1 using the actual team, prototypes, deployment constraints, and resolved decisions. Reserve up to two additional calendar weeks for dependency, device, or acceptance issues if the launch date permits; that reserve is not additional planned feature scope.
 
 Core requirements take precedence over optional home-screen polish. Every sprint includes testing, access-control checks, and a usable mobile increment; security and testing are not postponed to the final sprint.
 
@@ -846,6 +860,7 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 | 3 | Weeks 5–6 | Student uploads proof; instructor approves; paid course attendance unlocks in both languages. | Sprint 2 attendance/access decisions; private storage/in-app notifications |
 | 4 | Weeks 7–8 | Instructor publishes a timed test; eligible students take it on phones and see released grades. | Accounts, enrollment, payment access, scheduling/time conventions |
 | 5 | Weeks 9–10 | Reporting/exports, operational hardening, device/load validation, and a controlled pilot are complete. | End-to-end workflows from Sprints 1–4 |
+| 6 | Weeks 11–12 | Instructors publish group-scoped PDFs, pictures, and YouTube videos; eligible students use them inside the mobile course screen. | Academic offerings/groups, private storage, bilingual notifications |
 
 ### 5.3 Sprint 1 — foundation and academic setup
 
@@ -923,7 +938,23 @@ Core requirements take precedence over optional home-screen polish. Every sprint
 
 The pilot week must fit within the sprint through early feature completion; otherwise the rollout extends into the reserved calendar time. Do not shorten verification to preserve the estimate.
 
-### 5.8 Requirement coverage map
+### 5.8 Sprint 6 — group-scoped course materials
+
+**Implementation status (25 October 2026):** application implementation and automated feature/regression tests are complete. Production migration and physical-device English/Arabic acceptance remain deployment gates.
+
+**Outcome:** an instructor publishes one reusable material to selected groups, and each enrolled student sees only the files and embedded YouTube videos assigned to their current group.
+
+1. Add material, material-group, lesson, uploader, order, lifecycle, and bilingual-content persistence: FR-MT-01–02.
+2. Build instructor creation/editing, group selection, draft publication, archive, private PDF/picture upload, and canonical YouTube URL handling: FR-MT-01/02/04.
+3. Add the phone-first student library inside the course page, grouped by general content or lesson, with responsive YouTube playback and authorized PDF/picture responses: FR-MT-03–04.
+4. Notify newly eligible groups after publication, retain audit history, and prevent duplicate notices or cross-offering assignments: FR-MT-05.
+5. Verify group transfer behavior, signed-out/wrong-group denial, private-file headers, invalid/oversized uploads, URL validation, English/Arabic display, and mobile video layout.
+
+**Exit criteria:** draft and archived materials are hidden; a material shared with Groups A and B is stored once and visible to both; Group C receives neither access nor notices. Transferring a student changes access immediately. YouTube videos play inside the student screen and uploaded files have no public URL.
+
+**Review demo:** publish a YouTube lesson to Group A, confirm Group B cannot see it, add Group B to the same material, then open the embedded video from both student accounts. Repeat with a private PDF and archive it.
+
+### 5.9 Requirement coverage map
 
 | Requirement set | First implemented | Complete acceptance |
 | --- | --- | --- |
@@ -932,6 +963,7 @@ The pilot week must fit within the sprint through early feature completion; othe
 | FR-SC-01–05: weekly schedule | Sprint 2 | Sprint 2 |
 | FR-AT-01–05: attendance | Sprint 2 | Sprint 3 for payment/waiver integration; Sprint 5 load verification |
 | FR-PY-01–05: payment | Sprint 3 | Sprint 3; running-attempt behavior in Sprint 4 |
+| FR-MT-01–05: course materials | Sprint 6 | Sprint 6 group/file/mobile acceptance |
 | FR-EX-01–05: tests | Sprint 4 | Sprint 4; Sprint 5 load/device regression |
 | FR-NT-01–05: communication | Base in Sprint 1; schedule/payment/test notices in Sprints 2/3/4 | Announcements and delivery recovery in Sprint 5 |
 | FR-RP-01–05: dashboards/reports/audit | Foundations in Sprints 1–4 | Sprint 5 |
@@ -939,20 +971,21 @@ The pilot week must fit within the sprint through early feature completion; othe
 | NFR-01–05: quality and operations | Baseline in Sprint 1; exercised throughout | Sprint 5 operational acceptance |
 | ENV-01–05: Docker setup, CI, and runtime lifecycle | Local setup/CI in Sprint 1; private receipt storage in Sprint 3 | ENV-01–04 in Sprint 1; ENV-05 deployment/rollback acceptance in Sprint 5 |
 
-### 5.9 Decisions to confirm during implementation planning
+### 5.10 Decisions to confirm during implementation planning
 
-The attendance interpretation, Saturday week start, English/Arabic support, phone/code-password login, login-phone initialization of the WhatsApp contact, absence of email/phone verification, and registration followed by authenticated-only course actions are confirmed. These five remaining decision groups cover proposed details; they do not reopen those requirements.
+The attendance interpretation, Saturday week start, English/Arabic support, phone/code-password login, login-phone initialization of the WhatsApp contact, absence of email/phone verification, and registration followed by authenticated-only course actions are confirmed. These six decision groups cover proposed details; they do not reopen those requirements.
 
 | Decision | Default used in this document | Latest decision point |
 | --- | --- | --- |
 | Commercial/access policy | Payment approval and two free attendances reset for each semester offering. The system stores no course fee; payments are cash in EGP, and the instructor reviews proofs and supplies receiving instructions. Audited waivers are allowed. | Before Sprint 3 payment screens |
 | Academic operations | One active group; shared lesson identities across groups; fixed `Africa/Cairo` timezone; instructor/invitation enrollment only; students see only their enrolled offerings. Saturday week start is fixed. | Confirmed in Sprint 1 |
+| Course materials | Materials belong to an offering, target one or more groups, may optionally belong to a lesson, and use private PDF/picture files or embedded videos from the academy's YouTube channel. | Confirmed before Sprint 6 |
 | Account recovery, locale details, and devices | Review instructor-assisted recovery, optional instructor authenticator-app 2FA, generated student-code format, and English fallback when no supported browser preference exists. Both languages and no email/phone verification are fixed; sample student devices determine browser support. | Sprint 1 prototype |
 | Assessments | Standard tests follow trial/payment eligibility; optional free or paid-only tests; single-choice/true-false/text questions; one initial attempt; no code execution; instructor-controlled result release. | Before Sprint 4 |
 | Setup, operations, and retention | Docker Compose/Sail is the local setup; Serv00 PHP shared hosting is selected for production. Proposed 2,000-student envelope, 24-hour receipt review, and 24-month history remain subject to Serv00 load validation, off-host backup automation, budget, and retention approval. | Hosting selected in Sprint 1; capacity/backup/retention before Sprint 5 |
 
 If a proposed default changes, update the affected rule, acceptance scenario, and sprint estimate together. Lifetime trial limits across semesters, installment billing, or broader phone-browser support change implementation work. English and Arabic localization is already included in this version's required scope.
 
-### 5.10 Immediate review action
+### 5.11 Immediate review action
 
 **Next two-minute action:** run `php85 artisan system:check --wait=75` on Serv00 and record whether every production dependency passes.

@@ -46,6 +46,8 @@ class OfferingController extends Controller
                 'enrollments as active_enrollments_count' => fn ($enrollments) => $enrollments->where('status', 'enrolled'),
             ]),
             'lessons' => fn ($query) => $query->withCount('classSessions'),
+            'materials.lesson',
+            'materials.groups',
             'enrollments.student.profile',
             'enrollments.group',
             'enrollments.transferRequests.group',

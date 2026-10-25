@@ -31,4 +31,9 @@ class Group extends Model
     {
         return $this->hasMany(ClassSession::class);
     }
+
+    public function materials()
+    {
+        return $this->belongsToMany(CourseMaterial::class, 'course_material_group');
+    }
 }

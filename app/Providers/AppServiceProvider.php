@@ -7,6 +7,7 @@ use App\Http\Middleware\ActiveAccount;
 use App\Http\Middleware\InstructorOnly;
 use App\Models\ClassSession;
 use App\Models\Course;
+use App\Models\CourseMaterial;
 use App\Models\CourseOffering;
 use App\Models\Enrollment;
 use App\Models\Group;
@@ -14,6 +15,7 @@ use App\Models\Lesson;
 use App\Models\PaymentProof;
 use App\Models\Semester;
 use App\Policies\AcademicPolicy;
+use App\Policies\CourseMaterialPolicy;
 use App\Policies\PaymentProofPolicy;
 use App\Services\CourseAccessService;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -35,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
         foreach ([Course::class, CourseOffering::class, Enrollment::class, Group::class, Lesson::class, Semester::class, ClassSession::class] as $model) {
             Gate::policy($model, AcademicPolicy::class);
         }
+        Gate::policy(CourseMaterial::class, CourseMaterialPolicy::class);
         Gate::policy(PaymentProof::class, PaymentProofPolicy::class);
         RateLimiter::for('login-ip', fn (Request $r) => Limit::perMinute(30)->by($r->ip()));
         RateLimiter::for('registration', fn (Request $r) => Limit::perMinute(10)->by($r->ip()));
