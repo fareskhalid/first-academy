@@ -11,9 +11,16 @@ class EnrollmentInvitation extends Model
 
     protected $guarded = ['id'];
 
+    protected $hidden = ['token', 'token_hash'];
+
     protected function casts(): array
     {
-        return ['expires_at' => 'datetime', 'revoked_at' => 'datetime'];
+        return ['token' => 'encrypted', 'expires_at' => 'datetime', 'revoked_at' => 'datetime'];
+    }
+
+    public function getInvitationUrlAttribute(): ?string
+    {
+        return $this->token ? route('invitations.show', $this->token) : null;
     }
 
     public function offering()

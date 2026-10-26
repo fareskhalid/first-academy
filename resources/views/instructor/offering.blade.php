@@ -2,9 +2,7 @@
     @php
         $activeGroups = $offering->groups->whereNull('archived_at');
         $activeLessons = $offering->lessons->whereNull('archived_at');
-        $activeEnrollments = $offering->enrollments->where('status', 'enrolled');
         $activeInvitations = $offering->invitations->whereNull('revoked_at')->filter(fn ($invitation) => $invitation->expires_at->isFuture());
-        $pendingTransfers = $offering->enrollments->sum(fn ($enrollment) => $enrollment->transferRequests->where('status', 'pending')->count());
     @endphp
 
     <main class="offering-detail-page">
@@ -34,7 +32,7 @@
         </nav>
 
         <section class="offering-detail-insights" aria-label="{{ __('ui.course_overview') }}">
-            <article><span><x-icon name="users" :size="20" /></span><div><strong>{{ $activeEnrollments->count() }}</strong><small><x-t k="active_students" /></small></div></article>
+            <article><span><x-icon name="users" :size="20" /></span><div><strong>{{ $offering->active_enrollments_count }}</strong><small><x-t k="active_students" /></small></div></article>
             <article><span><x-icon name="graduation" :size="20" /></span><div><strong>{{ $activeGroups->count() }}</strong><small><x-t k="active_groups" /></small></div></article>
             <article><span><x-icon name="clipboard" :size="20" /></span><div><strong>{{ $activeLessons->count() }}</strong><small><x-t k="active_lessons" /></small></div></article>
             <article><span><x-icon name="calendar" :size="20" /></span><div><strong>{{ $offering->class_sessions_count }}</strong><small><x-t k="total_lectures" /></small></div></article>
@@ -256,9 +254,29 @@
 
                         <div class="offering-invite-list">
                             @forelse($activeInvitations as $invite)
-                                <div>
-                                    <span><strong>{{ $invite->group->display_name }}</strong><small><x-t k="expires" /> {{ $invite->expires_at->format('Y-m-d') }}</small></span>
-                                    <form method="POST" action="{{ route('instructor.invitations.revoke', $invite) }}">@csrf<button class="secondary"><x-t k="revoke" /></button></form>
+                                <div class="offering-invite-item">
+                                    <div class="offering-invite-summary">
+                                        <span><strong>{{ $invite->group->display_name }}</strong><small><x-t k="expires" /> {{ $invite->expires_at->format('Y-m-d') }}</small></span>
+                                        <form method="POST" action="{{ route('instructor.invitations.revoke', $invite) }}">@csrf<button class="secondary"><x-t k="revoke" /></button></form>
+                                    </div>
+                                    @if($invite->invitation_url)
+                                        <details class="invitation-link-details">
+                                            <summary><x-icon name="view" :size="15" /><x-t k="show_invitation_link" /></summary>
+                                            <div class="invitation-link-box" x-data="{ copied: false }">
+                                                <input x-ref="url" type="text" value="{{ $invite->invitation_url }}" readonly dir="ltr" aria-label="{{ __('ui.invitation_link') }}">
+                                                <div>
+                                                    <button type="button" class="secondary" @click="navigator.clipboard.writeText($refs.url.value).then(() => { copied = true; setTimeout(() => copied = false, 1500) })"><x-icon name="clipboard" :size="15" /><span x-text="$store.i18n.t(copied ? 'copied' : 'copy_link')">{{ __('ui.copy_link') }}</span></button>
+                                                    <a class="button secondary" href="{{ $invite->invitation_url }}" target="_blank" rel="noopener"><x-icon name="arrow" :size="15" /><x-t k="open_link" /></a>
+                                                </div>
+                                            </div>
+                                        </details>
+                                    @else
+                                        <form method="POST" action="{{ route('instructor.invitations.refresh-link', $invite) }}" class="legacy-invitation-link">
+                                            @csrf
+                                            <span><x-icon name="warning" :size="15" /><x-t k="legacy_invitation_link_hint" /></span>
+                                            <button class="secondary"><x-icon name="link" :size="15" /><x-t k="regenerate_link" /></button>
+                                        </form>
+                                    @endif
                                 </div>
                             @empty
                                 <p><x-t k="no_active_invitations" /></p>
@@ -273,11 +291,30 @@
             <div class="offering-section-heading">
                 <span><x-icon name="users" :size="20" /></span>
                 <div><h2><x-t k="roster" /></h2><p><x-t k="course_roster_hint" /></p></div>
-                <strong>{{ $offering->enrollments->count() }}</strong>
+                <strong>{{ $roster->total() }}</strong>
             </div>
 
+            <form method="GET" action="{{ route('instructor.offerings.show', $offering) }}#course-roster" class="offering-roster-filters">
+                <x-field name="student_search" label="search_course_students" type="search" :value="$filters['student_search']" maxlength="100" autocomplete="off" />
+                <x-select name="student_status" label="enrollment_status">
+                    <option value="">{{ __('ui.all_enrollment_statuses') }}</option>
+                    @foreach(['enrolled', 'withdrawn', 'completed'] as $value)<option value="{{ $value }}" @selected($filters['student_status'] === $value)>{{ __('ui.'.$value) }}</option>@endforeach
+                </x-select>
+                <x-select name="student_group" label="group">
+                    <option value="">{{ __('ui.all_groups') }}</option>
+                    @foreach($activeGroups as $group)<option value="{{ $group->id }}" @selected((string) $filters['student_group'] === (string) $group->id)>{{ $group->display_name }}</option>@endforeach
+                </x-select>
+                <x-select name="student_sort" label="sort_by">
+                    @foreach(['name_asc', 'name_desc', 'newest', 'oldest'] as $value)<option value="{{ $value }}" @selected($filters['student_sort'] === $value)>{{ __('ui.'.$value) }}</option>@endforeach
+                </x-select>
+                <div class="filter-actions">
+                    <button class="primary"><x-icon name="search" :size="17" /><x-t k="apply_filters" /></button>
+                    @if($filters['student_search'] !== '' || $filters['student_status'] !== '' || $filters['student_group'] !== '' || $filters['student_sort'] !== 'name_asc')<a class="button secondary" href="{{ route('instructor.offerings.show', $offering) }}#course-roster"><x-t k="clear_filters" /></a>@endif
+                </div>
+            </form>
+
             <div class="offering-roster-list">
-                @forelse($offering->enrollments as $enrollment)
+                @forelse($roster as $enrollment)
                     <details class="offering-roster-item">
                         <summary>
                             <span class="offering-student-avatar">{{ mb_substr($enrollment->student->name, 0, 1) }}</span>
@@ -342,6 +379,7 @@
                     <div class="offering-list-empty"><x-icon name="users" :size="24" /><strong><x-t k="no_students" /></strong><span><x-t k="no_students_hint" /></span></div>
                 @endforelse
             </div>
+            @if($roster->hasPages())<div class="offering-roster-pagination">{{ $roster->links() }}</div>@endif
         </section>
     </main>
 </x-layout>

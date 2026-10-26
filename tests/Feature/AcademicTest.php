@@ -6,8 +6,10 @@ use App\Actions\Academics\EnrollmentManager;
 use App\Models\AttendanceIntent;
 use App\Models\AuditEvent;
 use App\Models\ClassSession;
+use App\Models\Course;
 use App\Models\CourseOffering;
 use App\Models\EnrollmentInvitation;
+use App\Models\Semester;
 use App\Models\User;
 use App\Services\QrCredentialService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,8 +27,8 @@ class AcademicTest extends TestCase
         $this->signIn($teacher);
         $this->post('/instructor/setup/semesters', ['name' => 'Autumn', 'name_ar' => 'الخريف', 'starts_on' => '2026-09-01', 'ends_on' => '2027-01-31'])->assertRedirect();
         $this->post('/instructor/setup/courses', ['name' => 'Programming', 'name_ar' => 'البرمجة', 'code' => 'CS101', 'description' => 'Course', 'description_ar' => 'كورس'])->assertRedirect();
-        $courseId = \App\Models\Course::sole()->id;
-        $semesterId = \App\Models\Semester::sole()->id;
+        $courseId = Course::sole()->id;
+        $semesterId = Semester::sole()->id;
         $this->post('/instructor/offerings', ['title' => 'Programming Autumn', 'title_ar' => 'برمجة الخريف', 'course_id' => $courseId, 'semester_id' => $semesterId, 'uses_groups' => 1])->assertRedirect();
         $offering = CourseOffering::sole();
         $this->assertSame('draft', $offering->status);
@@ -151,6 +153,52 @@ class AcademicTest extends TestCase
         $this->post('/invitations/'.$token)->assertNotFound();
     }
 
+    public function test_instructor_can_reopen_active_invitation_links_and_regenerate_legacy_links(): void
+    {
+        $offering = $this->offering();
+        $this->signIn($offering->instructor)
+            ->post('/instructor/offerings/'.$offering->id.'/invitations', ['group_id' => $offering->groups->first()->id])
+            ->assertRedirect()
+            ->assertSessionHas('invitation_url');
+
+        $invitation = EnrollmentInvitation::sole();
+        $url = route('invitations.show', $invitation->token);
+        $this->assertSame($url, $invitation->invitation_url);
+        $this->get('/instructor/offerings/'.$offering->id)
+            ->assertOk()
+            ->assertSee($url);
+
+        $legacy = EnrollmentInvitation::create([
+            'course_offering_id' => $offering->id,
+            'group_id' => $offering->groups->last()->id,
+            'token_hash' => hash('sha256', Str::random(64)),
+            'expires_at' => now()->addDay(),
+        ]);
+        $this->post('/instructor/invitations/'.$legacy->id.'/refresh-link')
+            ->assertRedirect()
+            ->assertSessionHas('invitation_url');
+        $this->assertNotNull($legacy->fresh()->token);
+    }
+
+    public function test_offering_roster_supports_scoped_search_filters_and_sorting(): void
+    {
+        $offering = $this->offering();
+        $amy = User::factory()->create(['name' => 'Amy Active']);
+        $zed = User::factory()->create(['name' => 'Zed Withdrawn']);
+        app(EnrollmentManager::class)->enroll($offering->instructor, $offering, $amy, $offering->groups->first()->id);
+        $zedEnrollment = app(EnrollmentManager::class)->enroll($offering->instructor, $offering, $zed, $offering->groups->last()->id);
+        $zedEnrollment->update(['status' => 'withdrawn', 'withdrawn_at' => now()]);
+
+        $this->signIn($offering->instructor)
+            ->get('/instructor/offerings/'.$offering->id.'?student_search=Amy&student_status=enrolled&student_group='.$offering->groups->first()->id.'&student_sort=name_desc')
+            ->assertOk()
+            ->assertSee('Amy Active')
+            ->assertDontSee('Zed Withdrawn');
+        $this->get('/instructor/offerings/'.$offering->id.'?student_sort=name_desc')
+            ->assertOk()
+            ->assertSeeInOrder(['Zed Withdrawn', 'Amy Active']);
+    }
+
     public function test_foreign_instructor_and_student_cannot_manage_records_or_view_rosters(): void
     {
         $offering = $this->offering();
@@ -205,7 +253,10 @@ class AcademicTest extends TestCase
             ->get('/instructor/students?search=Managed')
             ->assertOk()
             ->assertSee('Managed Student')
-            ->assertDontSee('Foreign Student');
+            ->assertDontSee('Foreign Student')
+            ->assertDontSee('Algorithms')
+            ->assertSee('Student directory')
+            ->assertSee('Joined on');
         $this->post('/instructor/students/'.$foreign->id.'/account', ['action' => 'suspend', 'reason' => 'Outside scope'])->assertForbidden();
         $this->post('/instructor/students/'.$managed->id.'/account', ['action' => 'suspend', 'reason' => 'Account review'])->assertRedirect();
         $this->assertSame('suspended', $managed->fresh()->status);

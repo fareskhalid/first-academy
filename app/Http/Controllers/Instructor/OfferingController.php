@@ -8,6 +8,8 @@ use App\Models\CourseOffering;
 use App\Models\Group;
 use App\Models\Lesson;
 use App\Models\Semester;
+use App\Models\TransferRequest;
+use App\Models\User;
 use App\Support\Audit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,9 +38,20 @@ class OfferingController extends Controller
         ]);
     }
 
-    public function show(CourseOffering $offering)
+    public function show(Request $request, CourseOffering $offering)
     {
         Gate::authorize('manage', $offering);
+        $filters = $request->validate([
+            'student_search' => ['nullable', 'string', 'max:100'],
+            'student_status' => ['nullable', Rule::in(['enrolled', 'withdrawn', 'completed'])],
+            'student_group' => ['nullable', 'integer', Rule::exists('groups', 'id')->where('course_offering_id', $offering->id)->whereNull('archived_at')],
+            'student_sort' => ['nullable', Rule::in(['name_asc', 'name_desc', 'newest', 'oldest'])],
+        ]);
+        $filters['student_search'] = trim((string) ($filters['student_search'] ?? ''));
+        $filters['student_status'] = $filters['student_status'] ?? '';
+        $filters['student_group'] = $filters['student_group'] ?? '';
+        $filters['student_sort'] = $filters['student_sort'] ?? 'name_asc';
+
         $offering->load([
             'course',
             'semester',
@@ -48,13 +61,49 @@ class OfferingController extends Controller
             'lessons' => fn ($query) => $query->withCount('classSessions'),
             'materials.lesson',
             'materials.groups',
-            'enrollments.student.profile',
-            'enrollments.group',
-            'enrollments.transferRequests.group',
             'invitations.group',
-        ])->loadCount('classSessions');
+        ])->loadCount([
+            'classSessions',
+            'enrollments',
+            'enrollments as active_enrollments_count' => fn ($query) => $query->where('status', 'enrolled'),
+        ]);
 
-        return view('instructor.offering', compact('offering'));
+        $rosterQuery = $offering->enrollments()->with([
+            'student.profile',
+            'group',
+            'transferRequests.group',
+        ]);
+
+        if ($filters['student_search'] !== '') {
+            $escaped = '%'.addcslashes($filters['student_search'], '%_\\').'%';
+            $rosterQuery->whereHas('student', fn ($query) => $query
+                ->where(fn ($student) => $student
+                    ->where('name', 'like', $escaped)
+                    ->orWhere('phone', 'like', $escaped)
+                    ->orWhere('student_code', 'like', $escaped)
+                    ->orWhereHas('profile', fn ($profile) => $profile->where('whatsapp_phone', 'like', $escaped))));
+        }
+        if ($filters['student_status'] !== '') {
+            $rosterQuery->where('status', $filters['student_status']);
+        }
+        if ($filters['student_group'] !== '') {
+            $rosterQuery->where('group_id', $filters['student_group']);
+        }
+
+        match ($filters['student_sort']) {
+            'name_desc' => $rosterQuery->orderByDesc(User::select('name')->whereColumn('users.id', 'enrollments.student_id')),
+            'newest' => $rosterQuery->latest('joined_at'),
+            'oldest' => $rosterQuery->oldest('joined_at'),
+            default => $rosterQuery->orderBy(User::select('name')->whereColumn('users.id', 'enrollments.student_id')),
+        };
+
+        $roster = $rosterQuery->paginate(15, ['*'], 'students_page')->withQueryString();
+        $pendingTransfers = TransferRequest::query()
+            ->where('status', 'pending')
+            ->whereHas('enrollment', fn ($query) => $query->where('course_offering_id', $offering->id))
+            ->count();
+
+        return view('instructor.offering', compact('offering', 'roster', 'filters', 'pendingTransfers'));
     }
 
     public function save(Request $r, ?CourseOffering $offering = null)

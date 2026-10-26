@@ -14,12 +14,27 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         $instructorId = $request->user()->id;
-        $search = mb_substr(trim((string) $request->query('search')), 0, 100);
-        $status = $request->query('status');
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', Rule::in(['active', 'suspended'])],
+            'sort' => ['nullable', Rule::in(['name_asc', 'name_desc', 'newest', 'oldest'])],
+        ]);
+        $search = trim((string) ($filters['search'] ?? ''));
+        $status = $filters['status'] ?? '';
+        $sort = $filters['sort'] ?? 'name_asc';
 
-        $query = User::query()
+        $baseQuery = User::query()
             ->where('role', 'student')
             ->whereHas('enrollments.offering', fn (Builder $query) => $query->where('instructor_id', $instructorId));
+
+        $insights = [
+            'total' => (clone $baseQuery)->count(),
+            'active' => (clone $baseQuery)->where('status', 'active')->count(),
+            'suspended' => (clone $baseQuery)->where('status', 'suspended')->count(),
+            'new' => (clone $baseQuery)->where('created_at', '>=', now()->startOfMonth())->count(),
+        ];
+
+        $query = clone $baseQuery;
 
         if ($search !== '') {
             $escaped = '%'.addcslashes($search, '%_\\').'%';
@@ -27,24 +42,23 @@ class StudentController extends Controller
                 $query->where('name', 'like', $escaped)
                     ->orWhere('phone', 'like', $escaped)
                     ->orWhere('student_code', 'like', $escaped)
-                    ->orWhereHas('profile', fn (Builder $profile) => $profile
-                        ->where('whatsapp_phone', 'like', $escaped)
-                        ->orWhere('university_student_id', 'like', $escaped));
+                    ->orWhereHas('profile', fn (Builder $profile) => $profile->where('whatsapp_phone', 'like', $escaped));
             });
         }
-        if (in_array($status, ['active', 'suspended'], true)) {
+        if ($status !== '') {
             $query->where('status', $status);
         }
 
-        $students = $query->with([
-            'profile',
-            'enrollments' => fn ($query) => $query
-                ->whereHas('offering', fn ($offering) => $offering->where('instructor_id', $instructorId))
-                ->with(['offering.course', 'group'])
-                ->latest('id'),
-        ])->orderBy('name')->paginate(20)->withQueryString();
+        match ($sort) {
+            'name_desc' => $query->orderByDesc('name'),
+            'newest' => $query->latest('created_at'),
+            'oldest' => $query->oldest('created_at'),
+            default => $query->orderBy('name'),
+        };
 
-        return view('instructor.students', compact('students', 'search', 'status'));
+        $students = $query->with('profile')->paginate(20)->withQueryString();
+
+        return view('instructor.students', compact('students', 'search', 'status', 'sort', 'insights'));
     }
 
     public function account(Request $request, User $student, ManageStudentAccount $manager)

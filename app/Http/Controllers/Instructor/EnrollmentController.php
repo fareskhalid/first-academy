@@ -51,8 +51,24 @@ class EnrollmentController extends Controller
         $data = $r->validate(['group_id' => ['required', 'integer', Rule::exists('groups', 'id')->where('course_offering_id', $offering->id)->whereNull('archived_at')]]);
         $token = Str::random(64);
         DB::transaction(function () use ($r, $offering, $data, $token) {
-            $invite = EnrollmentInvitation::create(['course_offering_id' => $offering->id, 'group_id' => $data['group_id'], 'token_hash' => hash('sha256', $token), 'expires_at' => now()->addDays(7)]);
+            $invite = EnrollmentInvitation::create(['course_offering_id' => $offering->id, 'group_id' => $data['group_id'], 'token' => $token, 'token_hash' => hash('sha256', $token), 'expires_at' => now()->addDays(7)]);
             Audit::record($r->user(), 'invitation_created', $invite, [], null, $offering->instructor_id);
+        });
+
+        return back()->with('invitation_url', route('invitations.show', $token));
+    }
+
+    public function refreshLink(Request $r, EnrollmentInvitation $invitation)
+    {
+        Gate::authorize('manage', $invitation->offering);
+        $token = Str::random(64);
+        DB::transaction(function () use ($r, $invitation, $token) {
+            $invitation = EnrollmentInvitation::lockForUpdate()->findOrFail($invitation->id);
+            if ($invitation->revoked_at || $invitation->expires_at->isPast()) {
+                throw ValidationException::withMessages(['invitation' => __('ui.active_invitation_required')]);
+            }
+            $invitation->update(['token' => $token, 'token_hash' => hash('sha256', $token)]);
+            Audit::record($r->user(), 'invitation_link_regenerated', $invitation, [], null, $invitation->offering->instructor_id);
         });
 
         return back()->with('invitation_url', route('invitations.show', $token));

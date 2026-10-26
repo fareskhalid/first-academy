@@ -73,6 +73,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::put('/enrollments/{enrollment}', [EnrollmentController::class, 'update'])->name('enrollments.update');
         Route::post('/enrollments/{enrollment}/account', [EnrollmentController::class, 'account'])->name('enrollments.account');
         Route::post('/offerings/{offering}/invitations', [EnrollmentController::class, 'invite'])->name('invitations.store');
+        Route::post('/invitations/{invitation}/refresh-link', [EnrollmentController::class, 'refreshLink'])->name('invitations.refresh-link');
         Route::post('/invitations/{invitation}/revoke', [EnrollmentController::class, 'revoke'])->name('invitations.revoke');
         Route::post('/transfers/{transfer}', [EnrollmentController::class, 'review'])->name('transfers.review');
         Route::get('/audit', [DashboardController::class, 'audit'])->name('audit');
