@@ -238,7 +238,7 @@ The attendance window is independent of the session lifecycle. By default it ope
 
 #### Check-in flow
 
-1. The student uses the phone's normal camera to open the QR URL. Authentication is checked before class details are displayed or any attendance work begins. A signed-out visitor is sent to login; the server may preserve only the intended internal destination, not an attendance intent or accepted scan time.
+1. The signed-in student opens the platform scanner and points the rear camera at the displayed QR, or uses the phone's normal camera to open the QR URL. The embedded scanner processes frames in the browser and accepts only a same-origin attendance URL. Authentication is checked before class details are displayed or any attendance work begins. A signed-out visitor opening the URL is sent to login; the server may preserve only the intended internal destination, not an attendance intent or accepted scan time.
 2. An existing student signs in using their phone/student code and password. A new student registers a regular account, then signs in. The destination may be restored, but the QR must still be valid at that time; otherwise request a fresh scan. Authentication grants no pre-login timing grace.
 3. The authenticated, already-enrolled student sees the course, group, and class and taps “Record attendance.” The server validates the current token and creates an intent bound to that user, browser session, and class; it then attempts check-in. Attendance QR codes never create an enrollment.
 4. Inside one database transaction, the system checks the latest access state and writes or returns the attendance. If payment or enrollment is blocked, it gives the exact next step. No guest record, temporary identity, or anonymous attendance is created.
@@ -481,12 +481,12 @@ Laravel supports queue dispatch after a database transaction commits and storage
 | Layer | Recommendation | Why it fits | Trade-off or condition |
 | --- | --- | --- | --- |
 | QR generation | `endroid/qr-code` through Composer, with a compatible locked release | Generates the class QR inside the PHP application. | The library renders a code; application services must still implement expiry, revocation, and access checks. |
-| QR scanning | Phone's native camera opens the HTTPS attendance URL | No app installation or embedded camera dependency for the normal journey. | Test real phones; provide the short-code/manual fallback. An embedded scanner can be added later. |
+| QR scanning | `@zxing/browser` embedded scanner, with the phone's native camera and short code as fallbacks | Gives signed-in students an in-platform rear-camera flow without an app installation. Frames remain in the browser; only same-origin attendance URLs are accepted. | Camera access requires HTTPS or localhost and explicit permission. Test real phones and keep manual code entry available. |
 | Automated quality | PHPUnit or Pest, Livewire component tests, Playwright browser tests, Pint | Checks PHP behavior, full student journeys, and coding consistency. | Emulated phones do not replace camera/upload checks on real hardware. Select one PHP test style in Sprint 1. |
 | Production | Serv00 PHP website with PHP 8.5, MySQL 8.0, Node 24 builds, HTTPS, and cron | Fits the existing shared-hosting account without a Docker or Node application server. | Use database cache/session/queue drivers, expose only `public/`, and validate shared-host capacity before the teaching pilot. |
 | Setup and delivery | Docker Compose + Laravel Sail locally; Git, container-based CI, isolated staging, and repeatable releases | Gives developers a consistent environment and makes each sprint demonstrable. | Commit setup instructions and versioned configuration; CI uses isolated synthetic data, never real receipts or production volumes. |
 
-The QR package is documented by its maintainer. If an embedded scanner is later added, browser camera access needs a secure context such as HTTPS. [Endroid QR Code](https://github.com/endroid/qr-code), [MDN camera access](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
+The QR packages are documented by their maintainers. Browser camera access needs a secure context such as HTTPS. [Endroid QR Code](https://github.com/endroid/qr-code), [ZXing browser](https://github.com/zxing-js/browser), [MDN camera access](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia).
 
 Playwright supports mobile device emulation; use it alongside physical Android and iPhone testing. Production configuration should follow the framework's deployment guidance. [Playwright emulation](https://playwright.dev/docs/emulation), [Laravel deployment](https://laravel.com/docs/13.x/deployment).
 
@@ -773,7 +773,7 @@ Destructive deletion, payment revocation, attempt invalidation, and archival act
 | AT-07 | A token expires, but an already-valid intent is completed within its capped grace time. | Completion follows the intent policy; explicit instructor closure instead invalidates it immediately. | FR-AT-01, FR-AT-02 |
 | AT-08 | A student joins after an earlier session, or a session was never delivered. | Earlier attendance is not retrospectively absent; undelivered classes do not enter the attendance denominator. | FR-AT-05, FR-RP-03 |
 | AT-09 | An instructor voids an incorrect attendance. | Count and allowance recalculate; old/new values and reason remain auditable. A later valid recheck-in reuses the canonical lesson record. | FR-AT-04, FR-RP-05 |
-| AT-10 | Several legitimate students check in from the same campus connection. | Rate limiting still permits normal class bursts; native-camera and short-code flows apply identical access rules. | FR-AT-01, NFR-02 |
+| AT-10 | Several legitimate students check in from the same campus connection. | Rate limiting still permits normal class bursts; embedded-scanner, native-camera, and short-code flows apply identical access rules. | FR-AT-01, NFR-02 |
 
 #### Payment and ownership
 

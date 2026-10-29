@@ -27,6 +27,13 @@ class StudentController extends Controller
         return view('student.courses');
     }
 
+    public function attendanceScanner(Request $request)
+    {
+        abort_if($request->user()->isInstructor(), 403);
+
+        return view('student.attendance-scanner');
+    }
+
     public function lectures(Request $request)
     {
         abort_if($request->user()->isInstructor(), 403);

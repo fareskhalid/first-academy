@@ -36,6 +36,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::view('/notifications', 'notifications')->name('notifications');
     Route::get('/student/courses', [StudentController::class, 'index'])->name('student.courses');
     Route::get('/student/lectures', [StudentController::class, 'lectures'])->name('student.lectures');
+    Route::get('/student/attendance/scanner', [StudentController::class, 'attendanceScanner'])->name('student.attendance.scanner');
     Route::get('/student/payments', [PaymentController::class, 'index'])->name('student.payments.index');
     Route::post('/student/enrollments/{enrollment}/payment-proofs', [PaymentController::class, 'store'])->name('student.payments.store');
     Route::get('/payment-proofs/{proof}/file', [PaymentController::class, 'file'])->name('payment-proofs.file');

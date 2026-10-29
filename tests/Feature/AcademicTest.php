@@ -21,6 +21,22 @@ class AcademicTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_attendance_scanner_is_available_only_to_signed_in_students(): void
+    {
+        $this->get('/student/attendance/scanner')->assertRedirect('/login');
+
+        $student = User::factory()->create();
+        $this->signIn($student)
+            ->get('/student/attendance/scanner')
+            ->assertOk()
+            ->assertSee('data-qr-scanner', false)
+            ->assertSee(route('attendance.code'), false);
+
+        $this->signIn(User::factory()->instructor()->create())
+            ->get('/student/attendance/scanner')
+            ->assertForbidden();
+    }
+
     public function test_instructor_creates_semester_course_offering_groups_and_lessons(): void
     {
         $teacher = User::factory()->instructor()->create();

@@ -30,6 +30,7 @@
     <a href="{{ route('student.courses') }}"><span><x-icon name="book" :size="20" /></span><div><strong><x-t k="browse_courses" /></strong><small><x-t k="courses_page_hint" /></small></div><x-icon name="arrow" :size="17" /></a>
     <a href="{{ route('student.lectures') }}"><span><x-icon name="calendar" :size="20" /></span><div><strong><x-t k="my_lectures" /></strong><small><x-t k="upcoming_classes" /> · {{ $insights['upcoming_classes'] }}</small></div><x-icon name="arrow" :size="17" /></a>
     <a href="{{ route('student.payments.index') }}"><span><x-icon name="wallet" :size="20" /></span><div><strong><x-t k="my_payments" /></strong><small><x-t k="course_access" /></small></div><x-icon name="arrow" :size="17" /></a>
+    <a class="student-scan-action" href="{{ route('student.attendance.scanner') }}"><span><x-icon name="qr" :size="20" /></span><div><strong><x-t k="scan_qr_code" /></strong><small><x-t k="attendance" /></small></div><x-icon name="arrow" :size="17" /></a>
 </nav>
 
 <div class="student-dashboard-focus">
@@ -47,7 +48,9 @@
 </div>
 
 <section class="student-action-card student-checkin-card">
-    <div class="student-action-heading"><span><x-icon name="qr" :size="23" /></span><div><h2><x-t k="enter_class_code" /></h2><p><x-t k="class_code_hint" /></p></div></div>
+    <div class="student-action-heading"><span><x-icon name="qr" :size="23" /></span><div><h2><x-t k="record_attendance" /></h2><p><x-t k="scan_qr_hint" /></p></div></div>
+    <a class="button primary student-camera-button" href="{{ route('student.attendance.scanner') }}"><x-icon name="qr" :size="19" /><x-t k="scan_qr_code" /></a>
+    <div class="student-checkin-divider"><span><x-t k="or_enter_code" /></span></div>
     <form method="POST" action="{{ route('attendance.code') }}" class="student-code-form" x-data="{ submitting: false }" @submit="submitting = true">@csrf
         <x-field name="code" label="short_code" required minlength="6" maxlength="6" pattern="[A-Za-z0-9]{6}" dir="ltr" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" />
         <button class="primary" :disabled="submitting"><span x-show="!submitting"><x-icon name="check" :size="18" /><x-t k="record_attendance" /></span><span x-cloak x-show="submitting"><x-t k="please_wait" /></span></button>

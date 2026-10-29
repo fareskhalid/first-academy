@@ -437,3 +437,114 @@ async function initWeekCalendar() {
 }
 
 document.addEventListener('DOMContentLoaded', initWeekCalendar);
+
+function initAttendanceQrScanner() {
+    const root = document.querySelector('[data-qr-scanner]');
+    if (!root) return;
+
+    const video = root.querySelector('[data-qr-video]');
+    const placeholder = root.querySelector('[data-qr-placeholder]');
+    const status = root.querySelector('[data-qr-status]');
+    const startButton = root.querySelector('[data-qr-start]');
+    const stopButton = root.querySelector('[data-qr-stop]');
+    let controls = null;
+    let startSequence = 0;
+    let redirecting = false;
+    let lastInvalidAt = 0;
+
+    const setStatus = (message, state = 'idle') => {
+        status.textContent = message;
+        status.dataset.state = state;
+    };
+
+    const setCameraVisible = visible => {
+        video.hidden = !visible;
+        placeholder.hidden = visible;
+        root.classList.toggle('is-scanning', visible);
+        startButton.hidden = visible;
+        stopButton.hidden = !visible;
+        startButton.disabled = false;
+    };
+
+    const stopCamera = (resetStatus = true) => {
+        startSequence += 1;
+        controls?.stop();
+        controls = null;
+        video.srcObject?.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        setCameraVisible(false);
+        if (resetStatus && !redirecting) setStatus(root.dataset.cameraReady);
+    };
+
+    const attendanceUrl = value => {
+        try {
+            const url = new URL(value, window.location.origin);
+            if (url.origin !== window.location.origin || url.search || url.hash) return null;
+            if (!/^\/attendance\/scan\/[A-Za-z0-9]{64}\/?$/.test(url.pathname)) return null;
+            return url.href;
+        } catch {
+            return null;
+        }
+    };
+
+    const startCamera = async () => {
+        if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+            setStatus(root.dataset.cameraHttps, 'error');
+            showToast(root.dataset.cameraHttps, { type: 'error' });
+            return;
+        }
+
+        stopCamera(false);
+        const sequence = startSequence;
+        startButton.disabled = true;
+        setStatus(root.dataset.cameraStarting, 'working');
+
+        try {
+            const { BrowserQRCodeReader } = await import('@zxing/browser');
+            if (sequence !== startSequence) return;
+            const reader = new BrowserQRCodeReader();
+            const scannerControls = await reader.decodeFromConstraints({
+                audio: false,
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+            }, video, result => {
+                if (!result || redirecting) return;
+                const destination = attendanceUrl(result.getText());
+                if (!destination) {
+                    const now = Date.now();
+                    if (now - lastInvalidAt > 2500) {
+                        lastInvalidAt = now;
+                        setStatus(root.dataset.invalidQr, 'error');
+                    }
+                    return;
+                }
+
+                redirecting = true;
+                setStatus(root.dataset.qrDetected, 'success');
+                video.srcObject?.getTracks().forEach(track => track.stop());
+                window.location.assign(destination);
+            });
+            if (sequence !== startSequence) {
+                scannerControls.stop();
+                return;
+            }
+            controls = scannerControls;
+            setCameraVisible(true);
+            setStatus(root.dataset.cameraReady, 'success');
+        } catch {
+            if (sequence !== startSequence) return;
+            stopCamera(false);
+            setStatus(root.dataset.cameraError, 'error');
+            showToast(root.dataset.cameraError, { type: 'error' });
+        }
+    };
+
+    startButton.addEventListener('click', startCamera);
+    stopButton.addEventListener('click', () => stopCamera());
+    window.addEventListener('pagehide', () => stopCamera(false));
+}
+
+document.addEventListener('DOMContentLoaded', initAttendanceQrScanner);
