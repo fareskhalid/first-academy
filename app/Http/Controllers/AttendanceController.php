@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Contracts\CourseAccess;
 use App\Models\Attendance;
 use App\Models\AttendanceIntent;
+use App\Models\QrCredential;
 use App\Services\AttendanceManager;
 use App\Services\QrCredentialService;
 use Illuminate\Http\Request;
@@ -23,9 +24,8 @@ class AttendanceController extends Controller
     {
         abort_if($request->user()->isInstructor(), 403);
         $credential = $credentials->fromToken($token);
-        $intent = $attendance->createIntent($credential, $request->user(), $this->browserHash($request));
 
-        return redirect()->route('attendance.intent', $intent);
+        return $this->checkIn($request, $credential, $attendance, 'qr');
     }
 
     public function code(Request $request, QrCredentialService $credentials, AttendanceManager $attendance)
@@ -33,9 +33,8 @@ class AttendanceController extends Controller
         abort_if($request->user()->isInstructor(), 403);
         $data = $request->validate(['code' => ['required', 'alpha_num:ascii', 'size:6']]);
         $credential = $credentials->fromShortCode($data['code']);
-        $intent = $attendance->createIntent($credential, $request->user(), $this->browserHash($request));
 
-        return redirect()->route('attendance.intent', $intent);
+        return $this->checkIn($request, $credential, $attendance, 'code');
     }
 
     public function intent(Request $request, AttendanceIntent $intent)
@@ -74,6 +73,15 @@ class AttendanceController extends Controller
     private function browserHash(Request $request): string
     {
         return hash('sha256', $request->session()->getId());
+    }
+
+    private function checkIn(Request $request, QrCredential $credential, AttendanceManager $attendance, string $method)
+    {
+        $browserHash = $this->browserHash($request);
+        $intent = $attendance->createIntent($credential, $request->user(), $browserHash, $method);
+        $result = $attendance->record($intent, $request->user(), $browserHash);
+
+        return redirect()->route('attendance.result', $intent)->with('attendance_duplicate', $result['duplicate']);
     }
 
     private function authorizeIntent(Request $request, AttendanceIntent $intent): void

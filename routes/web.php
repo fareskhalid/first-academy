@@ -40,6 +40,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::post('/student/enrollments/{enrollment}/payment-proofs', [PaymentController::class, 'store'])->name('student.payments.store');
     Route::get('/payment-proofs/{proof}/file', [PaymentController::class, 'file'])->name('payment-proofs.file');
     Route::get('/course-materials/{material}/file', [CourseMaterialController::class, 'file'])->name('course-materials.file');
+    Route::get('/student/courses/{offering}/materials', [StudentController::class, 'materials'])->name('student.courses.materials');
     Route::get('/student/courses/{offering}', [StudentController::class, 'show'])->name('student.courses.show');
     Route::post('/student/enrollments/{enrollment}/transfer', [StudentController::class, 'transfer'])->name('student.transfer');
     Route::post('/invitations/{token}', [StudentController::class, 'invitationAccept'])->name('invitations.accept');

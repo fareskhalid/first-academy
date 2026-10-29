@@ -102,6 +102,39 @@ Alpine.store('i18n', {
         finally { this.busy = false; }
     },
 });
+
+const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+let storedTheme = null;
+try { storedTheme = localStorage.getItem('first-academy-theme'); } catch {}
+if (!['light', 'dark'].includes(storedTheme)) storedTheme = null;
+
+function applyTheme(theme, persist = false) {
+    const selected = theme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = selected;
+    document.documentElement.style.colorScheme = selected;
+    document.querySelector('[data-theme-color]')?.setAttribute('content', selected === 'dark' ? '#0d1120' : '#f7f7fc');
+    if (persist) {
+        storedTheme = selected;
+        try { localStorage.setItem('first-academy-theme', selected); } catch {}
+    }
+    window.dispatchEvent(new CustomEvent('course:theme-changed', { detail: { theme: selected } }));
+}
+
+Alpine.store('theme', {
+    current: document.documentElement.dataset.theme || (systemTheme.matches ? 'dark' : 'light'),
+    get isDark() { return this.current === 'dark'; },
+    toggle() {
+        this.current = this.isDark ? 'light' : 'dark';
+        applyTheme(this.current, true);
+    },
+});
+
+systemTheme.addEventListener('change', event => {
+    if (storedTheme) return;
+    const theme = event.matches ? 'dark' : 'light';
+    Alpine.store('theme').current = theme;
+    applyTheme(theme);
+});
 Livewire.start();
 
 const validationControlSelector = 'input:not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]), select, textarea';

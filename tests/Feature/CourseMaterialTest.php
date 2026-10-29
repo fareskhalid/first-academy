@@ -47,16 +47,27 @@ class CourseMaterialTest extends TestCase
         $this->assertSame([$groupA->id], $material->groups()->pluck('groups.id')->all());
         $this->assertDatabaseHas('notification_events', ['user_id' => $studentA->id, 'message_key' => 'notice_material_published']);
         $this->assertDatabaseMissing('notification_events', ['user_id' => $studentB->id, 'message_key' => 'notice_material_published']);
+        $this->assertDatabaseHas('notification_events', [
+            'user_id' => $studentA->id,
+            'url' => route('student.courses.materials', $offering, false),
+        ]);
         $this->get(route('instructor.offerings.show', $offering))->assertOk()->assertSee('Introduction video');
 
         $this->signIn($studentA)
             ->get(route('student.courses.show', $offering))
             ->assertOk()
+            ->assertSee(route('student.courses.materials', $offering))
+            ->assertDontSee('Introduction video');
+        $this->get(route('student.courses.materials', $offering))
+            ->assertOk()
             ->assertSee('Introduction video')
             ->assertSee('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ', false);
+        $this->get(route('student.courses.materials', [$offering, 'type' => 'pdf']))
+            ->assertOk()
+            ->assertDontSee('Introduction video');
 
         $this->signIn($studentB)
-            ->get(route('student.courses.show', $offering))
+            ->get(route('student.courses.materials', $offering))
             ->assertOk()
             ->assertDontSee('Introduction video');
         $this->get(route('course-materials.file', $material))->assertForbidden();
@@ -67,10 +78,17 @@ class CourseMaterialTest extends TestCase
             ->assertSessionHasNoErrors();
 
         $this->signIn($studentB)
-            ->get(route('student.courses.show', $offering))
+            ->get(route('student.courses.materials', $offering))
             ->assertOk()
             ->assertSee('Introduction video');
         $this->assertDatabaseHas('notification_events', ['user_id' => $studentB->id, 'message_key' => 'notice_material_published']);
+
+        $studentB->enrollments()->where('course_offering_id', $offering->id)->update(['status' => 'withdrawn']);
+        $this->get(route('student.courses.materials', $offering))->assertForbidden();
+
+        $this->signIn($offering->instructor)
+            ->get(route('student.courses.materials', $offering))
+            ->assertForbidden();
     }
 
     public function test_private_file_material_stays_hidden_until_published_and_archive_revokes_access(): void

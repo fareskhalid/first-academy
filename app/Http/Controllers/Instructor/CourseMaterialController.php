@@ -239,7 +239,7 @@ class CourseMaterialController extends Controller
                     'material' => $material->localized('title', $enrollment->student->locale),
                     'course' => $material->offering->localized('title', $enrollment->student->locale),
                 ],
-                route('student.courses.show', $material->course_offering_id, false).'#course-materials',
+                route('student.courses.materials', $material->course_offering_id, false),
             );
         }
     }

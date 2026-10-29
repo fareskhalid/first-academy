@@ -22,11 +22,13 @@ class AttendanceManager
 {
     public function __construct(private readonly CourseAccess $access) {}
 
-    public function createIntent(QrCredential $credential, User $student, string $browserSessionHash): AttendanceIntent
+    public function createIntent(QrCredential $credential, User $student, string $browserSessionHash, string $method = 'qr'): AttendanceIntent
     {
+        abort_unless(in_array($method, ['qr', 'code'], true), 500);
+
         $denial = null;
         try {
-            return DB::transaction(function () use ($credential, $student, $browserSessionHash, &$denial) {
+            return DB::transaction(function () use ($credential, $student, $browserSessionHash, $method, &$denial) {
                 $credential = QrCredential::with('session.offering')->lockForUpdate()->findOrFail($credential->id);
                 $session = $credential->session;
                 $now = now();
@@ -53,6 +55,7 @@ class AttendanceManager
                 return AttendanceIntent::create([
                     'class_session_id' => $session->id, 'enrollment_id' => $enrollment->id, 'user_id' => $student->id,
                     'qr_credential_id' => $credential->id, 'browser_session_hash' => $browserSessionHash,
+                    'method' => $method,
                     'accepted_at' => $now, 'expires_at' => $expiresAt,
                 ]);
             });
@@ -107,7 +110,7 @@ class AttendanceManager
                 $values = [
                     'enrollment_id' => $enrollment->id, 'lesson_id' => $intent->session->lesson_id,
                     'class_session_id' => $intent->class_session_id, 'session_roster_entry_id' => $roster?->id,
-                    'status' => $status, 'method' => 'qr', 'access_source' => $accessSource,
+                    'status' => $status, 'method' => $intent->method, 'access_source' => $accessSource,
                     'observed_at' => $intent->accepted_at, 'recorded_at' => $now,
                 ];
                 if ($canonical) {
@@ -119,13 +122,13 @@ class AttendanceManager
                     $attendance = $canonical;
                     AttendanceRevision::create(['attendance_id' => $attendance->id, 'actor_id' => $student->id,
                         'before_values' => $before, 'after_values' => $attendance->fresh()->only(array_keys($before)),
-                        'reason' => 'Student completed an authorized QR check-in.']);
+                        'reason' => 'Student completed an authorized attendance check-in.']);
                 } else {
                     $attendance = Attendance::create($values);
                 }
                 $intent->update(['consumed_at' => $now]);
                 $roster?->update(['status' => $status, 'denial_reason' => null]);
-                Audit::record($student, 'attendance_recorded', $attendance, ['status' => $status], null, $intent->session->offering->instructor_id);
+                Audit::record($student, 'attendance_recorded', $attendance, ['status' => $status, 'method' => $intent->method], null, $intent->session->offering->instructor_id);
 
                 return $this->result($attendance, $enrollment, false);
             }, 3);

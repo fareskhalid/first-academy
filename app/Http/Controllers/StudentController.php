@@ -110,19 +110,68 @@ class StudentController extends Controller
         $attendanceTotal = $attendanceRecorded + $absenceCount;
         $attendanceRate = $attendanceTotal > 0 ? (int) round(($attendanceRecorded / $attendanceTotal) * 100) : null;
         $nextSession = $sessions->first(fn ($session) => $session->scheduled_start_at->isFuture());
-        $materials = collect();
-        if ($enrollment->status === 'enrolled') {
-            $materials = CourseMaterial::query()
-                ->published()
-                ->where('course_offering_id', $offering->id)
-                ->whereHas('groups', fn (Builder $query) => $query->where('groups.id', $enrollment->group_id))
-                ->with(['lesson', 'groups'])
-                ->orderBy('position')
-                ->orderBy('id')
-                ->get();
-        }
 
-        return view('student.course', compact('offering', 'enrollment', 'sessions', 'materials', 'attendedCount', 'remainingFree', 'accessSource', 'paymentState', 'latestProof', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
+        return view('student.course', compact('offering', 'enrollment', 'sessions', 'attendedCount', 'remainingFree', 'accessSource', 'paymentState', 'latestProof', 'attendanceRecorded', 'absenceCount', 'attendanceRate', 'nextSession'));
+    }
+
+    public function materials(Request $request, CourseOffering $offering)
+    {
+        abort_if($request->user()->isInstructor(), 403);
+        Gate::authorize('view', $offering);
+        $offering->load(['course', 'semester']);
+        $enrollment = $offering->enrollments()
+            ->with('group')
+            ->where('student_id', $request->user()->id)
+            ->firstOrFail();
+        abort_unless($enrollment->status === 'enrolled', 403);
+
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'type' => ['nullable', Rule::in(['all', ...CourseMaterial::TYPES])],
+            'lesson' => ['nullable', 'integer', Rule::exists('lessons', 'id')->where('course_offering_id', $offering->id)->whereNull('archived_at')],
+        ]);
+        $search = trim((string) ($filters['search'] ?? ''));
+        $type = $filters['type'] ?? 'all';
+        $lessonId = $filters['lesson'] ?? '';
+
+        $baseMaterials = CourseMaterial::query()
+            ->published()
+            ->where('course_offering_id', $offering->id)
+            ->whereHas('groups', fn (Builder $query) => $query->where('groups.id', $enrollment->group_id));
+        $insights = [
+            'total' => (clone $baseMaterials)->count(),
+            'youtube' => (clone $baseMaterials)->where('type', 'youtube')->count(),
+            'pdf' => (clone $baseMaterials)->where('type', 'pdf')->count(),
+            'image' => (clone $baseMaterials)->where('type', 'image')->count(),
+        ];
+        $lessons = $offering->lessons()
+            ->whereNull('archived_at')
+            ->whereHas('materials', fn (Builder $query) => $query
+                ->published()
+                ->whereHas('groups', fn (Builder $groups) => $groups->where('groups.id', $enrollment->group_id)))
+            ->get();
+
+        $materials = (clone $baseMaterials)
+            ->when($search !== '', function (Builder $query) use ($search) {
+                $escaped = '%'.addcslashes($search, '%_\\').'%';
+                $query->where(fn (Builder $searchQuery) => $searchQuery
+                    ->where('title', 'like', $escaped)
+                    ->orWhere('title_ar', 'like', $escaped)
+                    ->orWhere('description', 'like', $escaped)
+                    ->orWhere('description_ar', 'like', $escaped));
+            })
+            ->when($type !== 'all', fn (Builder $query) => $query->where('type', $type))
+            ->when($lessonId !== '', fn (Builder $query) => $query->where('lesson_id', $lessonId))
+            ->with('lesson')
+            ->get()
+            ->sortBy(fn (CourseMaterial $material) => [
+                $material->lesson?->position ?? 0,
+                $material->position,
+                $material->id,
+            ])
+            ->values();
+
+        return view('student.materials', compact('offering', 'enrollment', 'materials', 'lessons', 'insights', 'search', 'type', 'lessonId'));
     }
 
     public function transfer(Request $r, Enrollment $enrollment, EnrollmentManager $manager)

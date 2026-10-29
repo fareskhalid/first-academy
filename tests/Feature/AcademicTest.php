@@ -330,39 +330,64 @@ class AcademicTest extends TestCase
             ->assertDontSee('name="location"', false);
     }
 
-    public function test_student_can_create_attendance_intent_with_short_code(): void
+    public function test_student_records_attendance_in_one_step_with_short_code(): void
     {
-        $this->travelTo('2026-10-17 10:30:00');
-        $offering = $this->offering();
-        $lesson = $offering->lessons()->create(['title' => 'Attendance Lecture', 'title_ar' => 'محاضرة الحضور', 'position' => 1]);
-        $student = User::factory()->create();
-        $enrollment = app(EnrollmentManager::class)->enroll(
-            $offering->instructor,
-            $offering,
-            $student,
-            $offering->groups->first()->id,
-        );
-        $session = ClassSession::create([
-            'course_offering_id' => $offering->id,
-            'group_id' => $enrollment->group_id,
-            'lesson_id' => $lesson->id,
-            'scheduled_start_at' => now()->subMinutes(30),
-            'scheduled_end_at' => now()->addMinutes(90),
-            'attendance_opens_at' => now(),
-            'attendance_closes_at' => now()->addMinutes(90),
-            'late_after_at' => now()->addMinutes(30),
-            'status' => 'published',
-            'published_at' => now()->subDay(),
-        ]);
-        $issued = app(QrCredentialService::class)->issue($session);
+        [$student, $session, $issued] = $this->attendanceScenario();
+        $issued['shortCode'] = 'A1B2C3';
+        $issued['credential']->update(['short_code_hash' => hash('sha256', $issued['shortCode'])]);
 
         $response = $this->signIn($student)->post('/attendance/code', ['code' => strtolower($issued['shortCode'])]);
 
         $intent = AttendanceIntent::sole();
-        $response->assertRedirect(route('attendance.intent', $intent));
+        $response->assertRedirect(route('attendance.result', $intent));
         $this->assertTrue(Str::isUuid($intent->id));
         $this->assertSame($student->id, $intent->user_id);
         $this->assertSame($session->id, $intent->class_session_id);
+        $this->assertSame('code', $intent->method);
+        $this->assertNotNull($intent->consumed_at);
+        $this->assertDatabaseHas('attendances', [
+            'class_session_id' => $session->id,
+            'status' => 'present',
+            'method' => 'code',
+        ]);
+    }
+
+    public function test_student_records_attendance_with_one_click_after_scanning_qr(): void
+    {
+        [$student, $session, $issued] = $this->attendanceScenario();
+        $this->signIn($student)
+            ->get(route('attendance.scan', $issued['token']))
+            ->assertOk()
+            ->assertSee('Record attendance')
+            ->assertDontSee('Continue check-in');
+
+        $response = $this->post(route('attendance.start', $issued['token']));
+
+        $intent = AttendanceIntent::sole();
+        $response->assertRedirect(route('attendance.result', $intent));
+        $this->assertSame('qr', $intent->method);
+        $this->assertNotNull($intent->consumed_at);
+        $this->assertDatabaseHas('attendances', [
+            'class_session_id' => $session->id,
+            'status' => 'present',
+            'method' => 'qr',
+        ]);
+    }
+
+    public function test_repeated_attendance_submission_is_idempotent(): void
+    {
+        [$student, $session, $issued] = $this->attendanceScenario();
+        $this->signIn($student);
+
+        $this->post('/attendance/code', ['code' => $issued['shortCode']])->assertRedirect();
+        $firstIntent = AttendanceIntent::sole();
+        $second = $this->post('/attendance/code', ['code' => $issued['shortCode']]);
+
+        $secondIntent = AttendanceIntent::whereKeyNot($firstIntent->id)->sole();
+        $second->assertRedirect(route('attendance.result', $secondIntent));
+        $second->assertSessionHas('attendance_duplicate', true);
+        $this->assertDatabaseCount('attendances', 1);
+        $this->assertSame($session->id, $secondIntent->class_session_id);
     }
 
     public function test_my_lectures_lists_only_sessions_assigned_to_the_student(): void
@@ -464,5 +489,33 @@ class AcademicTest extends TestCase
             ->assertRedirect();
         $this->post('/instructor/offerings/'.$offering->id.'/status', ['status' => 'open', 'reason' => 'Reopen'])
             ->assertSessionHasErrors('status');
+    }
+
+    private function attendanceScenario(): array
+    {
+        $this->travelTo('2026-10-17 10:30:00');
+        $offering = $this->offering();
+        $lesson = $offering->lessons()->create(['title' => 'Attendance Lecture', 'title_ar' => 'محاضرة الحضور', 'position' => 1]);
+        $student = User::factory()->create();
+        $enrollment = app(EnrollmentManager::class)->enroll(
+            $offering->instructor,
+            $offering,
+            $student,
+            $offering->groups->first()->id,
+        );
+        $session = ClassSession::create([
+            'course_offering_id' => $offering->id,
+            'group_id' => $enrollment->group_id,
+            'lesson_id' => $lesson->id,
+            'scheduled_start_at' => now()->subMinutes(30),
+            'scheduled_end_at' => now()->addMinutes(90),
+            'attendance_opens_at' => now()->subMinutes(30),
+            'attendance_closes_at' => now()->addMinutes(90),
+            'late_after_at' => now()->addMinutes(30),
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+
+        return [$student, $session, app(QrCredentialService::class)->issue($session)];
     }
 }

@@ -416,6 +416,8 @@ Attendance result messages must distinguish “Recorded,” “Already recorded,
 
 Forms use visible labels, field-level errors, suitable phone/student-code keyboards, and readable text. Primary touch targets should be at least 44 × 44 CSS pixels. Support screen readers, keyboard operation, 200% text zoom, and non-color status indicators. During tests, the timer and save status remain visible without covering the question or mobile keyboard.
 
+Authentication, student, instructor, and error interfaces support light and dark themes in both languages. On the first visit the interface follows the device color preference; the shared header switch stores an explicit browser preference for later visits. Both themes preserve readable status colors, focus indicators, form controls, tables, calendars, and mobile navigation.
+
 ### 2.11 English and Arabic support
 
 | ID | Requirement | Acceptance criteria |
@@ -648,7 +650,7 @@ Route names below are implementation examples, not a promise of a public API con
 | Surface | Illustrative routes | Required checks |
 | --- | --- | --- |
 | Authentication and account management | `GET/POST /login`, `GET/POST /register`, invitation phone check; authenticated profile/password actions and instructor reset action | Public mutations are limited to login, regular registration, and throttled invitation account routing. Normalize phone/code and enforce student role on registration. No verification or email-reset routes. |
-| QR attendance | `GET /attend/{token}`, `POST /attendance-intents`, `POST /attendance-intents/{intent}/complete` | Authentication before data/intent access; token lifecycle; CSRF; enrollment; access; idempotency. Signed-out GET redirects, POST is rejected. |
+| QR and code attendance | `GET/POST /attendance/scan/{token}`, `POST /attendance/code` | The authenticated GET shows one “Record attendance” action. Either POST validates the credential, creates its bound intent, records attendance, and opens the result in one request. Enforce token lifecycle, CSRF, enrollment, group, payment access, and idempotency; retain whether the source was QR or manual code. Signed-out GET redirects and signed-out POST is rejected. |
 | Student portal | `/student`, `/student/courses/{enrollment}`, `/student/payment-proofs`, `/student/tests/{test}` | Student ownership and per-action entitlement; private downloads always authorized. |
 | Instructor portal | `/instructor`, `/instructor/offerings/{offering}/schedule`, `/attendance`, `/payments`, `/tests` beneath an owned offering | Instructor role plus ownership; reasoned changes; scoped queries. |
 | Test attempts | `POST /tests/{test}/attempts`, answer-save and submit actions under `/attempts/{attempt}` | Current owner; test version; server deadline; answer revision; submission state. |

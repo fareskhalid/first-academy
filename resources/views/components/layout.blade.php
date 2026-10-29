@@ -5,6 +5,17 @@
     <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ __('ui.'.$title) }} · {{ __('ui.app_name') }}</title>
     <meta name="robots" content="noindex,nofollow">
+    <meta name="theme-color" content="#f7f7fc" data-theme-color>
+    <script>
+        (() => {
+            let saved = null;
+            try { saved = localStorage.getItem('first-academy-theme'); } catch {}
+            const theme = ['light', 'dark'].includes(saved) ? saved : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.dataset.theme = theme;
+            document.documentElement.style.colorScheme = theme;
+            document.querySelector('[data-theme-color]').content = theme === 'dark' ? '#0d1120' : '#f7f7fc';
+        })();
+    </script>
     @vite(['resources/css/app.css','resources/js/app.js'])
     @livewireStyles
 </head>
@@ -27,6 +38,11 @@
         <a class="brand" href="{{ auth()->check() ? route('dashboard') : route('login') }}"><span class="brand-mark"><x-icon name="graduation" :size="25" /></span><span><x-t k="app_name" /></span></a>
         <div class="tools">
             @auth <span class="role"><span class="role-dot"></span><x-t :k="auth()->user()->role" /></span> @endauth
+            <button type="button" class="secondary icon-button theme-toggle" data-testid="theme-toggle" @click="$store.theme.toggle()" :aria-pressed="$store.theme.isDark" :aria-label="$store.theme.isDark ? $store.i18n.t('switch_to_light_mode') : $store.i18n.t('switch_to_dark_mode')" :title="$store.theme.isDark ? $store.i18n.t('switch_to_light_mode') : $store.i18n.t('switch_to_dark_mode')">
+                <span x-show="!$store.theme.isDark"><x-icon name="moon" :size="18" /></span>
+                <span x-cloak x-show="$store.theme.isDark"><x-icon name="sun" :size="18" /></span>
+                <span class="tool-label" x-text="$store.theme.isDark ? $store.i18n.t('light_mode') : $store.i18n.t('dark_mode')">{{ __('ui.dark_mode') }}</span>
+            </button>
             <button type="button" class="secondary icon-button" data-testid="language-toggle" @click="$store.i18n.toggle()" :disabled="$store.i18n.busy" :aria-label="$store.i18n.locale === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'"><x-icon name="globe" :size="18" /><span x-text="$store.i18n.locale === 'ar' ? 'English' : 'العربية'">{{ app()->getLocale() === 'ar' ? 'English' : 'العربية' }}</span></button>
             @auth <form method="POST" action="{{ route('logout') }}">@csrf<button class="secondary icon-button"><x-icon name="logout" :size="18" /><span class="tool-label"><x-t k="logout" /></span></button></form> @endauth
         </div>
